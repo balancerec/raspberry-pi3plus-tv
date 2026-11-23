@@ -1,4 +1,5 @@
 #include "tv/ui.hpp"
+#include "tv/display.hpp"
 #include <sys/sysinfo.h>
 #include <array>
 #include <ctime>
@@ -13,10 +14,16 @@ constexpr SDL_Color Cyan{76,201,255,255};
 constexpr SDL_Color Dark{8,18,25,255};
 constexpr SDL_Color Panel{20,43,54,255};
 void fill(SDL_Renderer* r, SDL_Rect rect, SDL_Color c) {
-    SDL_SetRenderDrawColor(r,c.r,c.g,c.b,c.a); SDL_RenderFillRect(r,&rect);
+    SDL_Rect physical{display::toNative(rect.x),display::toNative(rect.y),
+                      display::toNative(rect.w),display::toNative(rect.h)};
+    SDL_SetRenderDrawColor(r,c.r,c.g,c.b,c.a);
+    SDL_RenderFillRect(r,&physical);
 }
 void border(SDL_Renderer* r, SDL_Rect rect, SDL_Color c) {
-    SDL_SetRenderDrawColor(r,c.r,c.g,c.b,c.a);SDL_RenderDrawRect(r,&rect);
+    SDL_Rect physical{display::toNative(rect.x),display::toNative(rect.y),
+                      display::toNative(rect.w),display::toNative(rect.h)};
+    SDL_SetRenderDrawColor(r,c.r,c.g,c.b,c.a);
+    SDL_RenderDrawRect(r,&physical);
 }
 std::string clockText() {
     char buf[24]="--:--";
@@ -44,10 +51,10 @@ bool TvUi::init() {
     for (auto* font:fonts) {
         std::ifstream exists(font);
         if (!exists) continue;
-        title_=TTF_OpenFont(font,52);
-        heading_=TTF_OpenFont(font,30);
-        body_=TTF_OpenFont(font,21);
-        small_=TTF_OpenFont(font,16);
+        title_=TTF_OpenFont(font,78);
+        heading_=TTF_OpenFont(font,45);
+        body_=TTF_OpenFont(font,32);
+        small_=TTF_OpenFont(font,24);
         if (title_ && heading_ && body_ && small_) {
             TTF_SetFontStyle(title_,TTF_STYLE_BOLD);
             TTF_SetFontStyle(heading_,TTF_STYLE_BOLD);
@@ -73,8 +80,11 @@ void TvUi::text(SDL_Renderer* r,TTF_Font* font,const std::string& value,
     if(!surface) return;
     SDL_Texture* texture=SDL_CreateTextureFromSurface(r,surface);
     if(texture) {
-        const double scale=surface->w>maxWidth ? static_cast<double>(maxWidth)/surface->w : 1.0;
-        SDL_Rect dest{x,y,static_cast<int>(surface->w*scale),static_cast<int>(surface->h*scale)};
+        const int physicalMaxWidth = display::toNative(maxWidth);
+        const double scale=surface->w>physicalMaxWidth ?
+            static_cast<double>(physicalMaxWidth)/surface->w : 1.0;
+        SDL_Rect dest{display::toNative(x),display::toNative(y),
+                      static_cast<int>(surface->w*scale),static_cast<int>(surface->h*scale)};
         SDL_RenderCopy(r,texture,nullptr,&dest);
         SDL_DestroyTexture(texture);
     }
@@ -92,7 +102,7 @@ void TvUi::header(SDL_Renderer* r,bool connected) {
     fill(r,{52,23,60,60},Mint);
     text(r,heading_,"R",70,33,Dark,40);
     text(r,heading_,"RASPBERRY TV",132,22,White,520);
-    text(r,small_,"NATIVE EDITION / C++ SDL2",134,69,Muted,500);
+    text(r,small_,"NATIVE FULL HD / C++ SDL2",134,69,Muted,500);
     panel(r,{885,31,230,44},{20,46,53,255});
     text(r,small_,connected?"PS4 CONECTADO":"SEM CONTROLE",902,43,connected?Mint:Muted,200);
     text(r,heading_,clockText(),1130,30,White,120);

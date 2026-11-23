@@ -1,4 +1,48 @@
-# Raspberry TV Native Edition — v0.2
+# Raspberry TV Native v0.3 — Full HD 1920x1080
+
+Esta branch renderiza a UI **nativamente em 1920x1080**, incluindo textos do SDL_ttf em alta resolucao. Mantem a navegacao DualShock 4 validada na v0.2 e a lista de canais M3U. A resolucao fisica do HDMI depende do modo selecionado no XFCE.
+
+## Validar no Raspberry Pi
+
+Como o clone inicial usou `--single-branch`, prefira trabalhar num worktree proprio, preservando o projeto existente:
+
+```bash
+cd ~/raspberry-pi3plus-tv
+git fetch origin refs/heads/feature/native-fullhd-v03
+git worktree add -b feature/native-fullhd-v03 ~/raspberry-tv-fullhd FETCH_HEAD
+cd ~/raspberry-tv-fullhd
+sudo apt install --no-install-recommends build-essential cmake pkg-config libsdl2-dev libsdl2-ttf-dev fonts-dejavu-core
+cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release
+cmake --build build/native -j2
+ctest --test-dir build/native --output-on-failure
+DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen
+```
+
+Verifique o modo real do HDMI **em outra sessao SSH**, com a TV logada:
+
+```bash
+DISPLAY=:0 xrandr --current
+```
+
+Se a TV estiver em 1280x720, a interface e renderizada internamente em 1080p mas reduzida na apresentacao. Ajuste a resolucao para 1920x1080 pelas configuracoes de exibicao do XFCE quando a opcao estiver disponivel.
+
+Para testar **video H.264 Full HD 1080p30** usando V4L2:
+
+```bash
+bash scripts/test-h264-fullhd.sh
+```
+
+Para testar a exibicao na TV (requer `glimagesink`/gstreamer1.0-gl):
+
+```bash
+DISPLAY=:0 bash scripts/test-h264-fullhd.sh --show
+```
+
+**Ainda nao ha playback de canais no aplicativo nativo.** Esta versao atualiza a interface para Full HD e disponibiliza a prova de video separada. Nao e uma declaracao de que reproduz qualquer IPTV em 1080p. Nao desligue LightDM, SSH ou servicos Python.
+
+---
+
+## Historico: v0.2
 
 Nova interface nativa C++17 + SDL2 + SDL_ttf, construida sobre o prototipo de DualShock 4 da v0.1.1. **Controle PS4 e a entrada principal.** Nenhum browser, runtime Python ou servidor HTTP e necessario para a UI. A versao web original segue na main.
 
