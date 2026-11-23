@@ -4,7 +4,7 @@ Protótipo de **navegação por controle como padrão** para a migração Python
 
 - `include/tv/input.hpp`, `src/input.cpp`: normalização e política independente de SDL2.
 - `src/main.cpp`: camada SDL2 de joystick e exibição simples.
-- `tests/input_tests.cpp`: testes lógicos de botões, histerese, repetição, gatilhos e desconexão.
+- `tests/input_tests.cpp`: testes lógicos de botões, histerese, ausência de repetição, gatilhos e desconexão.
 - `../docs/CONTROLE_PADRAO.md`: contrato de controle e teclas.
 
 ```bash
@@ -18,3 +18,7 @@ ctest --test-dir build/native --output-on-failure
 Para compilar e testar **sem instalar SDL2**, use `cmake -S native -B build/native-tests -DBUILD_NATIVE_APP=OFF` seguido de `cmake --build build/native-tests && ctest --test-dir build/native-tests --output-on-failure`.
 
 Evite executar em DRM/KMS direto enquanto o Xorg/LightDM estiver usando a saída HDMI. Execute na sessão gráfica atual primeiro. A seleção de cards é demonstrativa e serve para medir desempenho; não executa sites, aplicações externas nem vídeo.
+
+### Correção: navegação repetida (v0.1.1)
+
+O primeiro teste físico evidenciou repetição a cada 120 ms ao manter direções pressionadas. A correção elimina o auto-repeat e aplica filtragem de estabilidade de 80 ms ao analógico. Se ainda houver movimentação com o controle em repouso, obter amostras dos eixos e avaliar deriva/defeito físico antes de reduzir a zona morta.
