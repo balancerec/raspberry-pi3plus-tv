@@ -29,10 +29,11 @@ ctest --test-dir build/native --output-on-failure
 - [x] `tv-input-tests` gerado.
 - [x] `raspberry-tv-native` gerado.
 - [x] CTest: `controller_input` aprovado (1/1; 100%; duração reportada 0,02 s).
-- [ ] Janela SDL2 exibida na televisão: **não testado**.
-- [ ] Entrada real de DualShock 4 por USB: **não testado**.
-- [ ] Entrada real de DualShock 4 por Bluetooth: **não testado**.
-- [ ] Botão PS, Options, gatilhos e reconexão: **não testados no hardware**.
+- [x] Protótipo SDL2 aberto com `DISPLAY=:0` no DietPi, confirmado pelo usuário.
+- [x] SDL2 detectou `PS4 Controller`, com instâncias `(0)` e `(1)` em um mesmo teste (conexão/reconexão ou nova instância a esclarecer); transporte USB/Bluetooth não informado.
+- [ ] Transporte Bluetooth versus USB e reconexão ainda não isolados em teste específico.
+- [x] Movimentos direcionais do controle detectados no console (up/down/left/right).
+- [ ] Botão PS, Options, gatilhos e reconexão: **não testados separadamente no hardware**.
 - [ ] Desempenho e RAM durante uso: **não medidos**.
 - [ ] GStreamer integrado ao protótipo C++: **não implementado**.
 
@@ -56,3 +57,22 @@ Em seguida testar reconhecimento do controle por USB, comandos de navegação, B
 - O protótipo gráfico atualmente exibe seis cartões demonstrativos, não a interface final.
 - Os testes CTest cobrem a lógica de entrada, não a interação real com o hardware ou a interface HDMI.
 - A disponibilidade anterior do driver H.264 foi comprovada, mas a integração multimídia com este executável ainda está pendente.
+
+## 2026-11-23 — Primeiro teste físico de controle e correção v0.1.1
+
+O usuário executou `DISPLAY=:0 ./build/native/raspberry-tv-native`, obteve `Controle principal: PS4 Controller (0)` e, posteriormente, `Controle principal: PS4 Controller (1)`. O console mostrou movimentos up/down/left/right, mas também centenas de eventos repetidos durante o teste. A implementação anterior repetia movimentos após 350 ms e a cada 120 ms, explicando o spam direcional observado. Os logs disponíveis **não provam** clique × repetido; são eventos de direção. A mudança de instância pode indicar reconexão; precisa de diagnóstico separado.
+
+**Correção publicada na mesma branch:**
+- Desativada a repetição direcional ao manter D-pad ou analógico pressionados.
+- Analógico: limiar de ativação ±22000; liberação ±12000; estabilidade 80 ms.
+- Botões de ação mantidos com um evento por pressionamento.
+- Testes de longa duração, deriva analógica, jitter, reconexão e gatilhos; CTest **1/1 em Debug e Release localmente**, sem SDL2 no ambiente local.
+- **Pendente:** recompilar o commit atualizado no Raspberry Pi e validar novamente o controle físico e o HDMI.
+
+```bash
+cd ~/raspberry-pi3plus-tv
+git pull --ff-only
+cmake --build build/native -j2
+ctest --test-dir build/native --output-on-failure
+DISPLAY=:0 ./build/native/raspberry-tv-native
+```
