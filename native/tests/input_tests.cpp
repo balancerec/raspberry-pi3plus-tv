@@ -1,11 +1,16 @@
 #include "tv/input.hpp"
-#include <cassert>
+#include <cstdlib>
 #include <iostream>
 #include <vector>
 using namespace raspberry_tv;
 
 void expect(ControllerInput& input, std::uint32_t now, std::initializer_list<Action> expected) {
-    assert(input.poll(now) == std::vector<Action>(expected));
+    const auto actual = input.poll(now);
+    if (actual != std::vector<Action>(expected)) {
+        std::cerr << "Unexpected action count at " << now << "ms: got " << actual.size()
+                  << ", expected " << expected.size() << "\n";
+        std::exit(EXIT_FAILURE);
+    }
 }
 int main() {
     ControllerInput in;
