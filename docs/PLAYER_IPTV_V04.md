@@ -1,0 +1,87 @@
+# Raspberry TV Native v0.4 — primeiro player IPTV embutido (experimental)
+
+**Status:** codigo publicado para compilar e validar no Raspberry Pi; nao representa reproducao 1080p fluida.
+
+## Decisao de operacao
+A alimentacao atual do Raspberry Pi 3B+ foi mantida a pedido do proprietario, apesar de `vcgencmd get_throttled` ter indicado `0x50005` (subtensao e throttling ativos). Nao tentar desativar protecao por software, fazer overclock ou forcar repeticao de benchmarks sob subtensao. Preservar fonte, SSH, XFCE, LightDM, rede, Bluetooth, `raspberry-display.service`, e worktree `~/raspberry-tv-fullhd` existente.
+
+## Arquitetura adicionada
+
+- `native/include/tv/player.hpp`: classe `TvPlayer`, isolada da UI e do leitor M3U.
+- `native/src/player.cpp`: GStreamer `playbin` e `glimagesink`, com `GstVideoOverlay` usando o identificador X11 da janela SDL. Nao abre shell externo, nao exige root e nao inicia player ate pressionar × num canal.
+- `native/src/main.cpp`: converte a selecao de canal e os comandos do DualShock 4 em eventos do player. SDL nao redesenha sobre os quadros do GStreamer enquanto estiver reproduzindo; ao parar, volta ao shell.
+- `native/CMakeLists.txt`: dependencias `gstreamer-1.0`, `gstreamer-video-1.0` via pkg-config.
+- **Qualidade de imagem:** a UI conserva renderizacao interna 1920x1080. O codec e a taxa de quadros do canal dependem da origem e dos plugins; os atuais gargalos de OpenGL continuam em aberto.
+
+## Comandos do DualShock 4 na v0.4
+
+| Contexto | Botao | Resultado |
+|---|---|---|
+| Lista TV AO VIVO ou FAVORITOS | × | Inicia o canal selecionado |
+| Video | × / Options | Alterna pausa / reproduccao |
+| Video | ○ | Para video e devolve controle ao menu |
+| Video | PS | Para video e retorna ao inicio |
+| Video | L2 / R2 | Tenta trocar para canal anterior / seguinte |
+| Video | △ | Marca/desmarca favorito do canal selecionado |
+| Menus | D-pad / analogico | Navegar, um comando por acionamento |
+
+URLs M3U devem ser URIs absolutas com esquema `http`, `https`, `rtsp`, `rtmp`, `udp` ou `file`. A app nao imprime URLs de canais nem segredos de tokens. Nao insira listas nao confiaveis.
+
+## Instalacao no Raspberry (branch separada)
+
+```bash
+cd ~/raspberry-pi3plus-tv
+git fetch origin refs/heads/feature/native-iptv-playback-v04
+git worktree add -b feature/native-iptv-playback-v04 ~/raspberry-tv-player FETCH_HEAD
+cd ~/raspberry-tv-player
+
+sudo apt install --no-install-recommends \
+  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+  gstreamer1.0-gl gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+  gstreamer1.0-libav
+
+cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release
+cmake --build build/native -j2
+ctest --test-dir build/native --output-on-failure
+```
+
+Se a compilacao falhar, parar e inspecionar o erro. Nao configurar autostart nem executar como root.
+
+## Smoke test local, preferencialmente leve
+
+Crie uma lista com arquivo H.264 de teste ja presente no Raspberry (evita rede, autenticação e cargas imprevisiveis). Reempacotar para MP4 pode melhorar o reconhecimento sem recodificar:
+
+```bash
+ffmpeg -hide_banner -loglevel error -y -framerate 25 \
+  -i /tmp/raspberry-tv-test.h264 -c:v copy -movflags +faststart \
+  /tmp/raspberry-tv-teste.mp4
+
+cat > /tmp/raspberry-tv-teste.m3u <<'M3U'
+#EXTM3U
+#EXTINF:-1 group-title="Diagnostico",Teste de video local
+file:///tmp/raspberry-tv-teste.mp4
+M3U
+
+DISPLAY=:0 ./build/native/raspberry-tv-native \
+  --fullscreen --playlist /tmp/raspberry-tv-teste.m3u
+```
+
+Se o video ficar lento, pressionar ○ e retornar ao menu. Um video de 5 segundos e suficiente para este teste funcional; ainda nao e um teste de fluidez Full HD. O arquivo `/tmp/raspberry-tv-teste.mp4` e temporario.
+
+## Pendencias / gates
+
+- [x] Branch e modulo GStreamer de player estruturados.
+- [x] Mapeamento de comandos de playback no shell SDL.
+- [ ] Build C++ GStreamer no Raspberry (nao executado remotamente).
+- [ ] CTest 3/3 e teste com arquivo local, abertura do canal e retorno pelo ○.
+- [ ] Confirmar X11 `GstVideoOverlay` sobre a janela SDL com o driver real.
+- [ ] Testar fontes de canais M3U com permissao de uso, protocolos e audio.
+- [ ] Validar troca de canais e buffering real.
+- [ ] Resolver subtensao e perda de quadros antes da aprovacao 1080p30 sustentado.
+- [ ] Persistencia de favoritos, EPG, HUD do player e tratamento avancado de reconexao.
+
+## Referencias da API
+
+- GstVideoOverlay: https://gstreamer.freedesktop.org/documentation/video/gstvideooverlay.html
+- playbin: https://gstreamer.freedesktop.org/documentation/playback/playbin.html
+- glimagesink: https://gstreamer.freedesktop.org/documentation/opengl/glimagesink.html
