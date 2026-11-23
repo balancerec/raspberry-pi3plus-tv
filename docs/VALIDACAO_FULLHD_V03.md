@@ -69,3 +69,12 @@ Trecho de comandos e dados observados no equipamento:
 - [ ] Testar negociacao forcada de `video/x-raw(memory:DMABuf)` com `glimagesink` para saber se o caminho direto existe neste driver; falha de negociacao nao deve derrubar o app.
 - [ ] Analisar diferenca entre `sync=true` e `sync=false` sem confundir a eliminacao dos avisos com ganho de FPS.
 - [ ] Preferir 1080p30 com quadros entregues e audio sincronizado antes de integrar streams M3U na shell.
+
+### Script de diagnostico adicionado
+
+`bash scripts/diagnose-1080p-performance.sh` executa dois ensaios nao destrutivos a partir do arquivo de teste existente:
+
+- **A.** `v4l2h264dec ! fpsdisplaysink video-sink=glimagesink text-overlay=false sync=true`: relata `last-message`, `rendered`, `dropped` e FPS medidos pelo sink quando disponiveis.
+- **B.** Forca caps `video/x-raw(memory:DMABuf),format=DMA_DRM,drm-format=YU12` na fronteira entre V4L2 e GL. A falha e dado de diagnostico, nao deve disparar alteracoes no modo HDMI ou a desativacao do X11.
+
+Arquivos gerados: `~/raspberry-tv-1080p-diagnostics/fps-gl-1080p.log` e `~/raspberry-tv-1080p-diagnostics/dmabuf-gl-1080p.log`. O teste registra erros e contadores sem exibir URLs de IPTV.
