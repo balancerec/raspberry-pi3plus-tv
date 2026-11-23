@@ -1,6 +1,7 @@
 #include "tv/input.hpp"
 #include "tv/menu.hpp"
 #include "tv/ui.hpp"
+#include "tv/display.hpp"
 #include <SDL.h>
 
 #include <cstdio>
@@ -95,14 +96,30 @@ int main(int argc, char** argv) {
         return 1;
     }
     const Uint32 flags = SDL_WINDOW_SHOWN | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE);
-    SDL_Window* window = SDL_CreateWindow("Raspberry TV - Native Edition v0.2", SDL_WINDOWPOS_CENTERED,
-                                           SDL_WINDOWPOS_CENTERED, 1280, 720, flags);
+    SDL_Window* window = SDL_CreateWindow("Raspberry TV - Native Full HD v0.3", SDL_WINDOWPOS_CENTERED,
+                                           SDL_WINDOWPOS_CENTERED, raspberry_tv::display::NativeWidth, raspberry_tv::display::NativeHeight, flags);
     if (!window) { std::fprintf(stderr, "SDL_CreateWindow: %s\n", SDL_GetError()); SDL_Quit(); return 1; }
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!renderer) renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
     if (!renderer) { std::fprintf(stderr, "SDL_CreateRenderer: %s\n", SDL_GetError()); SDL_DestroyWindow(window); SDL_Quit(); return 1; }
 
-    SDL_RenderSetLogicalSize(renderer,1280,720);
+    if (SDL_RenderSetLogicalSize(renderer,raspberry_tv::display::NativeWidth,
+                                raspberry_tv::display::NativeHeight) != 0) {
+        std::fprintf(stderr,"Falha ao configurar renderizador Full HD: %s\n",SDL_GetError());
+        SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 1;
+    }
+    SDL_RendererInfo rendererInfo{};
+    if (SDL_GetRendererInfo(renderer,&rendererInfo)==0)
+        std::printf("Renderizador: %s\n",rendererInfo.name);
+    int outputWidth=0,outputHeight=0;
+    SDL_GetRendererOutputSize(renderer,&outputWidth,&outputHeight);
+    std::printf("Renderizacao interna: %d x %d; saida atual: %d x %d\n",
+                raspberry_tv::display::NativeWidth,raspberry_tv::display::NativeHeight,
+                outputWidth,outputHeight);
+    if(outputWidth<raspberry_tv::display::NativeWidth ||
+       outputHeight<raspberry_tv::display::NativeHeight)
+        std::fprintf(stderr,
+                     "AVISO: saida HDMI abaixo de Full HD: verifique o modo de video do XFCE.\n");
     raspberry_tv::TvUi ui;
     if (!ui.init()) {
         std::fprintf(stderr,"Falha ao iniciar SDL_ttf: %s\n", TTF_GetError());
