@@ -1,11 +1,9 @@
 #include "tv/input.hpp"
 
-#include <utility>
 
 namespace raspberry_tv {
 namespace {
-constexpr std::uint32_t InitialDelayMs = 350;
-constexpr std::uint32_t RepeatEveryMs = 120;
+constexpr std::uint32_t AnalogStableMs = 80;
 
 std::size_t index(Button button) { return static_cast<std::size_t>(button); }
 Action oneShot(Button button) {
@@ -28,9 +26,10 @@ Action oneShot(Button button) {
 void ControllerInput::onButton(Button button, bool pressed, std::uint32_t nowMs) {
     const auto i = index(button);
     if (i >= held_.size() || held_[i] == pressed) return;
+    (void)nowMs;
     held_[i] = pressed;
     if (i <= index(Button::DpadRight)) {
-        syncDirection(nowMs);
+        syncDirection();
     } else if (pressed) {
         const Action action = oneShot(button);
         if (action != Action::None) pending_.push_back(action);
@@ -38,23 +37,31 @@ void ControllerInput::onButton(Button button, bool pressed, std::uint32_t nowMs)
 }
 
 int ControllerInput::filterAnalog(std::int16_t value, int previous) {
-    // Activation threshold 18k, release threshold 11k: prevents jitter.
-    if (value >= 18000) return 1;
-    if (value <= -18000) return -1;
-    if (value >= -11000 && value <= 11000) return 0;
+    // Hysteresis: require deliberate stick movement; filter minor drift.
+    if (value >= 22000) return 1;
+    if (value <= -22000) return -1;
+    if (value >= -12000 && value <= 12000) return 0;
     return previous;
 }
 
 void ControllerInput::onAxis(Axis axis, std::int16_t value, std::uint32_t nowMs) {
     switch (axis) {
-        case Axis::LeftX:
-            analogX_ = filterAnalog(value, analogX_);
-            syncDirection(nowMs);
+        case Axis::LeftX: {
+            const int next = filterAnalog(value, analogX_);
+            if (candidateX_ != next) {
+                candidateX_ = next;
+                candidateXSinceMs_ = nowMs;
+            }
             break;
-        case Axis::LeftY:
-            analogY_ = filterAnalog(value, analogY_);
-            syncDirection(nowMs);
+        }
+        case Axis::LeftY: {
+            const int next = filterAnalog(value, analogY_);
+            if (candidateY_ != next) {
+                candidateY_ = next;
+                candidateYSinceMs_ = nowMs;
+            }
             break;
+        }
         case Axis::TriggerLeft:
             onButton(Button::L2, value > 20000 || (held_[index(Button::L2)] && value > 12000), nowMs);
             break;
@@ -64,7 +71,7 @@ void ControllerInput::onAxis(Axis axis, std::int16_t value, std::uint32_t nowMs)
     }
 }
 
-void ControllerInput::syncDirection(std::uint32_t nowMs) {
+void ControllerInput::syncDirection() {
     Action next = Action::None;
     // Physical D-pad wins over analog stick; they never trigger duplicates.
     if (held_[index(Button::DpadUp)]) next = Action::Up;
@@ -77,15 +84,22 @@ void ControllerInput::syncDirection(std::uint32_t nowMs) {
     else if (analogX_ > 0) next = Action::Right;
     if (next == direction_) return;
     direction_ = next;
-    nextRepeatMs_ = nowMs + InitialDelayMs;
     if (next != Action::None) pending_.push_back(next);
 }
 
 std::vector<Action> ControllerInput::poll(std::uint32_t nowMs) {
-    if (direction_ != Action::None && static_cast<std::int32_t>(nowMs - nextRepeatMs_) >= 0) {
-        pending_.push_back(direction_);
-        nextRepeatMs_ = nowMs + RepeatEveryMs;
+    bool analogChanged = false;
+    if (candidateX_ != analogX_ &&
+        static_cast<std::uint32_t>(nowMs - candidateXSinceMs_) >= AnalogStableMs) {
+        analogX_ = candidateX_;
+        analogChanged = true;
     }
+    if (candidateY_ != analogY_ &&
+        static_cast<std::uint32_t>(nowMs - candidateYSinceMs_) >= AnalogStableMs) {
+        analogY_ = candidateY_;
+        analogChanged = true;
+    }
+    if (analogChanged) syncDirection();
     std::vector<Action> actions;
     actions.swap(pending_);
     return actions;
@@ -96,7 +110,10 @@ void ControllerInput::disconnect() {
     analogX_ = 0;
     analogY_ = 0;
     direction_ = Action::None;
-    nextRepeatMs_ = 0;
+    candidateX_ = 0;
+    candidateY_ = 0;
+    candidateXSinceMs_ = 0;
+    candidateYSinceMs_ = 0;
     pending_.clear();
 }
 

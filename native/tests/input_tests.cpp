@@ -1,27 +1,56 @@
 #include "tv/input.hpp"
-#include <cassert>
+#include <cstdlib>
 #include <iostream>
 #include <vector>
 using namespace raspberry_tv;
 
 void expect(ControllerInput& input, std::uint32_t now, std::initializer_list<Action> expected) {
-    assert(input.poll(now) == std::vector<Action>(expected));
+    const auto actual = input.poll(now);
+    if (actual != std::vector<Action>(expected)) {
+        std::cerr << "Unexpected action count at " << now << "ms: got " << actual.size()
+                  << ", expected " << expected.size() << "\n";
+        std::exit(EXIT_FAILURE);
+    }
 }
 int main() {
     ControllerInput in;
+    // Action buttons are strictly edge-triggered.
     in.onButton(Button::Cross, true, 0); expect(in, 0, {Action::Confirm});
     in.onButton(Button::Cross, true, 10); expect(in, 10, {});
-    in.onButton(Button::Cross, false, 11);
-    in.onButton(Button::Cross, true, 12); expect(in, 12, {Action::Confirm});
+    expect(in, 20000, {}); // button held for 20 seconds
+    in.onButton(Button::Cross, false, 20001); expect(in, 20001, {});
+    in.onButton(Button::Cross, true, 20002); expect(in, 20002, {Action::Confirm});
+
     in.disconnect();
     in.onButton(Button::DpadUp, true, 100); expect(in, 100, {Action::Up});
-    expect(in, 449, {}); expect(in, 450, {Action::Up}); expect(in, 570, {Action::Up});
-    in.onAxis(Axis::LeftY, -23000, 600); expect(in, 600, {}); // no duplicate D-pad+analog
-    in.onButton(Button::DpadUp, false, 610); expect(in, 610, {}); // stick still held
-    in.onAxis(Axis::LeftY, 0, 620); expect(in, 620, {});
-    in.onAxis(Axis::LeftX, 23000, 700); expect(in, 700, {Action::Right});
-    in.onAxis(Axis::LeftX, 13000, 701); expect(in, 701, {}); // hysteresis
-    in.onAxis(Axis::LeftX, 0, 702); expect(in, 702, {});
+    expect(in, 450, {}); expect(in, 570, {}); expect(in, 60000, {}); // no auto-repeat
+    in.onButton(Button::DpadUp, true, 60001); expect(in, 60001, {});
+    // Analog same direction cannot duplicate D-pad action.
+    in.onAxis(Axis::LeftY, -23000, 60002); expect(in, 60002, {});
+    expect(in, 60082, {});
+    in.onButton(Button::DpadUp, false, 60083); expect(in, 60083, {});
+    in.onAxis(Axis::LeftY, 0, 60084); expect(in, 60164, {});
+    // New button press generates exactly one action.
+    in.onButton(Button::DpadRight, true, 60170); expect(in, 60170, {Action::Right});
+    expect(in, 90000, {});
+    in.onButton(Button::DpadRight, false, 90001); expect(in, 90001, {});
+
+    in.disconnect();
+    // Small stick drift below activation threshold does not cause movement.
+    in.onAxis(Axis::LeftX, 18000, 1000); expect(in, 2000, {});
+    // Accept a stable intentional deflection only after 80 ms.
+    in.onAxis(Axis::LeftX, 27000, 2200); expect(in, 2200, {});
+    expect(in, 2279, {}); expect(in, 2280, {Action::Right});
+    expect(in, 10000, {}); // held analog does not repeat
+    in.onAxis(Axis::LeftX, 15000, 10001); expect(in, 10081, {}); // hysteresis
+    // Short neutral jitter: cancelled before the 80-ms release.
+    in.onAxis(Axis::LeftX, 0, 11000); expect(in, 11030, {});
+    in.onAxis(Axis::LeftX, 27000, 11040); expect(in, 11130, {});
+    // Genuine release, then a second deliberate movement.
+    in.onAxis(Axis::LeftX, 0, 12000); expect(in, 12080, {});
+    in.onAxis(Axis::LeftX, 27000, 13000); expect(in, 13080, {Action::Right});
+
+    in.disconnect();
     in.onAxis(Axis::TriggerRight, 23000, 800); expect(in, 800, {Action::NextChannel});
     in.onAxis(Axis::TriggerRight, 16000, 801); expect(in, 801, {});
     in.onAxis(Axis::TriggerRight, 0, 802); expect(in, 802, {});
@@ -32,5 +61,5 @@ int main() {
     in.onButton(Button::Triangle, true, 822); expect(in, 822, {Action::Favorites});
     in.onButton(Button::Square, true, 823); expect(in, 823, {Action::Details});
     in.disconnect(); expect(in, 2000, {});
-    std::cout << "ControllerInput tests passed\n";
+    std::cout << "ControllerInput no-repeat tests passed\n";
 }

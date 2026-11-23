@@ -21,7 +21,8 @@ enum class Button : std::uint8_t {
 enum class Axis : std::uint8_t { LeftX, LeftY, TriggerLeft, TriggerRight };
 
 // Independent from SDL: controller events enter here after normalization.
-// All input actions are edge-triggered except direction, which repeats while held.
+// Every action is edge-triggered; holding a direction never generates repeats.
+// Analog stick uses threshold hysteresis plus an 80-ms stability filter.
 class ControllerInput {
 public:
     void onButton(Button button, bool pressed, std::uint32_t nowMs);
@@ -35,10 +36,13 @@ private:
     int analogX_ = 0;
     int analogY_ = 0;
     Action direction_ = Action::None;
-    std::uint32_t nextRepeatMs_ = 0;
+    int candidateX_ = 0;
+    int candidateY_ = 0;
+    std::uint32_t candidateXSinceMs_ = 0;
+    std::uint32_t candidateYSinceMs_ = 0;
     std::vector<Action> pending_;
 
-    void syncDirection(std::uint32_t nowMs);
+    void syncDirection();
     static int filterAnalog(std::int16_t value, int previous);
 };
 
