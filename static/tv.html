@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Raspberry TV</title><link rel="stylesheet" href="/tv.css">
+</head>
+<body>
+  <div class="backdrop"></div>
+  <header>
+    <div class="brand"><i>R</i><span>RASPBERRY <b>TV</b></span></div>
+    <nav><button class="nav active" data-url="/tv">Início</button><button class="nav" data-action="apps">Aplicativos</button><button class="nav" data-url="/info">Painel</button></nav>
+    <div class="status"><span id="network">CONECTANDO</span><time id="clock">--:--</time></div>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="hero-copy"><span class="tag">SUA CENTRAL MULTIMÍDIA</span><h1 id="greeting">Boa noite.</h1><p>Filmes, música, internet e todo o controle do Raspberry em um só lugar.</p><button class="focusable primary" data-action="apps">EXPLORAR APLICATIVOS</button></div>
+      <div class="hero-art"><div class="orb"></div><strong>ENTRETENIMENTO<br>SEM LIMITES</strong></div>
+    </section>
+    <section id="apps" class="shelf"><div class="section-title"><h2>Aplicativos</h2><span>Use o D‑pad e pressione ×</span></div>
+      <div class="app-row">
+        <button class="app focusable netflix" data-url="https://www.netflix.com/browse"><i>N</i><span>Netflix</span></button>
+        <button class="app focusable youtube" data-url="https://www.youtube.com/tv"><i>▶</i><span>YouTube</span></button>
+        <button class="app focusable prime" data-url="https://www.primevideo.com/"><i>prime</i><span>Prime Video</span></button>
+        <button class="app focusable disney" data-url="https://www.disneyplus.com/"><i>Disney+</i><span>Disney+</span></button>
+        <button class="app focusable spotify" data-url="https://open.spotify.com/"><i>●</i><span>Spotify</span></button>
+        <button class="app focusable browser" data-url="https://www.google.com/"><i>◎</i><span>Navegador</span></button>
+      </div>
+    </section>
+    <section class="shelf"><div class="section-title"><h2>Meu Raspberry</h2><span id="device-summary">Carregando estado...</span></div>
+      <div class="system-row">
+        <button class="system-card focusable" data-url="/info"><i>⚙</i><span><b>Status do dispositivo</b><small>Informações do sistema</small></span></button>
+        <button class="system-card focusable" data-url="/tv"><i>⌂</i><span><b>Início</b><small>Voltar para esta tela</small></span></button>
+        <div class="system-card info"><i>◉</i><span><b id="pad-state">Controle</b><small id="pad-detail">Verificando...</small></span></div>
+        <div class="system-card info"><i>°</i><span><b id="temperature">-- °C</b><small>Temperatura do sistema</small></span></div>
+      </div>
+    </section>
+  </main>
+  <footer><span><b>×</b> ABRIR</span><span><b>○</b> VOLTAR</span><span><b>PS</b> INÍCIO</span><span id="date"></span></footer>
+  <div id="notice"></div><script src="/tv.js"></script>
+</body></html>

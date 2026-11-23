@@ -1,0 +1,19 @@
+[Unit]
+Description=Raspberry TV standalone (user %i)
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i/raspberry-tv-isolada
+ExecStart=/usr/bin/python3 /home/%i/raspberry-tv-isolada/server.py --host 127.0.0.1 --port 8090
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Status — Raspberry TV</title><link rel="stylesheet" href="/tv.css"><link rel="stylesheet" href="/info.css">
+</head>
+<body>
+  <div class="backdrop"></div>
+  <header>
+    <div class="brand"><i>R</i><span>RASPBERRY <b>TV</b></span></div>
+    <nav><a href="/tv" class="nav info-return">Voltar à TV</a></nav>
+    <div class="status">STATUS LOCAL</div>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="tag">APLICAÇÃO INDEPENDENTE</span>
+        <h1>Meu Raspberry.</h1>
+        <p>Informações de leitura do servidor Raspberry TV. O painel administrativo do projeto SPI/LCD/NRF não faz parte desta aplicação.</p>
+        <a href="/tv" class="primary info-action">VOLTAR PARA TV</a>
+      </div>
+      <div class="hero-art"><div class="orb"></div><strong>PAINEL<br>ISOLADO</strong></div>
+    </section>
+    <section class="shelf">
+      <div class="section-title"><h2>Estado atual</h2><span>Atualização automática</span></div>
+      <div class="system-row">
+        <div class="system-card info"><i>⌂</i><span><b id="host">--</b><small>Nome do equipamento</small></span></div>
+        <div class="system-card info"><i>⌘</i><span><b id="ip">--</b><small>IP do servidor</small></span></div>
+        <div class="system-card info"><i>◉</i><span><b id="cpu">--</b><small>Uso de CPU</small></span></div>
+        <div class="system-card info"><i>°</i><span><b id="temp">--</b><small>Temperatura</small></span></div>
+      </div>
+      <p id="error" class="info-note"></p>
+    </section>
+  </main>
+  <footer><span>Raspberry TV — módulo isolado</span><span id="date"></span></footer>
+  <script src="/info.js"></script>
+</body>
+</html>
