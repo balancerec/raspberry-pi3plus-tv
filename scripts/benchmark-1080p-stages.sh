@@ -23,10 +23,17 @@ run_test() {
   echo "===== $label ====="
   echo "Log: $logfile"
   local status=0
-  /usr/bin/time -f "tempo real: %e s | CPU usuario: %U s | sistema: %S s" \
-    timeout --signal=INT --kill-after=3s 30s gst-launch-1.0 -e -v "$@" \
-    >"$logfile" 2>&1 || status=$?
-  grep -E "last-message =|Execution ended|rendered:|dropped:|tempo real:|ERRO:|ERROR:|not-negotiated|timed out|Command exited" "$logfile" | tail -8 || true
+  local started ended
+  started=$(date +%s%3N)
+  if timeout --signal=INT --kill-after=3s 30s gst-launch-1.0 -e -v "$@" \
+    >"$logfile" 2>&1; then
+    status=0
+  else
+    status=$?
+  fi
+  ended=$(date +%s%3N)
+  echo "Tempo total medido: $((ended - started)) ms" | tee -a "$logfile"
+  grep -E "last-message =|Execution ended|rendered:|dropped:|Tempo total medido|ERRO:|ERROR:|not-negotiated|timed out|Command exited" "$logfile" | tail -8 || true
   echo "Status: $status"
   echo
 }
