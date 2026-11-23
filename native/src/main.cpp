@@ -1,8 +1,12 @@
 #include "tv/input.hpp"
+#include "tv/menu.hpp"
+#include "tv/ui.hpp"
 #include <SDL.h>
 
 #include <cstdio>
 #include <cstring>
+#include <ctime>
+#include <string>
 
 using raspberry_tv::Action;
 using raspberry_tv::Axis;
@@ -76,51 +80,44 @@ bool keyFromSDL(SDL_Keycode id, Button& result) {
         default: return false;
     }
 }
-void paint(SDL_Renderer* r, unsigned selected, bool gamepadConnected) {
-    int width = 960, height = 540;
-    SDL_GetRendererOutputSize(r, &width, &height);
-    SDL_SetRenderDrawColor(r, 7, 16, 20, 255);
-    SDL_RenderClear(r);
-    const int margin = width / 18;
-    const int gap = width / 48;
-    const int tileWidth = (width - 2 * margin - 2 * gap) / 3;
-    const int tileHeight = (height - 2 * margin - gap) / 2;
-    for (unsigned i = 0; i < 6; ++i) {
-        SDL_Rect tile{margin + static_cast<int>(i % 3) * (tileWidth + gap),
-                      margin + static_cast<int>(i / 3) * (tileHeight + gap), tileWidth, tileHeight};
-        SDL_SetRenderDrawColor(r, 20, 43, 54, 255);
-        SDL_RenderFillRect(r, &tile);
-        if (i == selected) {
-            SDL_SetRenderDrawColor(r, gamepadConnected ? 86 : 130, gamepadConnected ? 240 : 130, 178, 255);
-            for (int d = 0; d < 4; ++d) {
-                SDL_Rect outline{tile.x + d, tile.y + d, tile.w - 2 * d, tile.h - 2 * d};
-                SDL_RenderDrawRect(r, &outline);
-            }
-        }
-    }
-    SDL_RenderPresent(r);
-}
 } // namespace
 
 int main(int argc, char** argv) {
-    const bool fullscreen = argc > 1 && std::strcmp(argv[1], "--fullscreen") == 0;
+    bool fullscreen = false;
+    std::string playlist;
+    for (int i=1;i<argc;++i) {
+        if (std::strcmp(argv[i],"--fullscreen")==0) fullscreen=true;
+        else if (std::strcmp(argv[i],"--playlist")==0 && i+1<argc) playlist=argv[++i];
+        else if (std::strcmp(argv[i],"--help")==0) { std::puts("Uso: raspberry-tv-native [--fullscreen] [--playlist CAMINHO_M3U]"); return 0; }
+    }
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) {
         std::fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
         return 1;
     }
     const Uint32 flags = SDL_WINDOW_SHOWN | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE);
-    SDL_Window* window = SDL_CreateWindow("Raspberry TV - prototipo Gamepad First", SDL_WINDOWPOS_CENTERED,
-                                           SDL_WINDOWPOS_CENTERED, 960, 540, flags);
+    SDL_Window* window = SDL_CreateWindow("Raspberry TV - Native Edition v0.2", SDL_WINDOWPOS_CENTERED,
+                                           SDL_WINDOWPOS_CENTERED, 1280, 720, flags);
     if (!window) { std::fprintf(stderr, "SDL_CreateWindow: %s\n", SDL_GetError()); SDL_Quit(); return 1; }
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!renderer) renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
     if (!renderer) { std::fprintf(stderr, "SDL_CreateRenderer: %s\n", SDL_GetError()); SDL_DestroyWindow(window); SDL_Quit(); return 1; }
 
+    SDL_RenderSetLogicalSize(renderer,1280,720);
+    raspberry_tv::TvUi ui;
+    if (!ui.init()) {
+        std::fprintf(stderr,"Falha ao iniciar SDL_ttf: %s\n", TTF_GetError());
+        SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 1;
+    }
+    raspberry_tv::TvModel model;
+    if (!playlist.empty()) {
+        if (!model.loadPlaylist(playlist)) std::fprintf(stderr,"Nao foi possivel carregar a playlist.\n");
+        else std::printf("Playlist carregada: %zu canais\n",model.channels().size());
+    }
     ControllerInput input;
     openFirstController();
-    unsigned selected = 0;
     bool running = true;
     bool dirty = true;
+    std::time_t shownMinute = std::time(nullptr) / 60;
     while (running) {
         SDL_Event event;
         const bool hasEvent = SDL_WaitEventTimeout(&event, 20) != 0;
@@ -152,19 +149,15 @@ int main(int argc, char** argv) {
         }
         for (const Action action : input.poll(SDL_GetTicks())) {
             std::printf("Acao: %s\n", raspberry_tv::actionName(action));
-            switch (action) {
-                case Action::Up: selected = (selected + 3) % 6; dirty = true; break;
-                case Action::Down: selected = (selected + 3) % 6; dirty = true; break;
-                case Action::Left: selected = (selected + 5) % 6; dirty = true; break;
-                case Action::Right: selected = (selected + 1) % 6; dirty = true; break;
-                case Action::Home: selected = 0; dirty = true; break;
-                case Action::Back: selected = 0; dirty = true; break;
-                default: break; // Future IPTV modules will subscribe to these actions.
-            }
+            model.dispatch(action);
+            dirty = true;
         }
-        if (dirty) { paint(renderer, selected, controller != nullptr); dirty = false; }
+        const auto minute=std::time(nullptr)/60;
+        if(minute!=shownMinute) {shownMinute=minute;dirty=true;}
+        if (dirty) { ui.draw(renderer, model, controller != nullptr); dirty = false; }
     }
     closeController(input);
+    ui.close();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
