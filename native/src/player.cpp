@@ -154,9 +154,17 @@ bool TvPlayer::poll() {
     while ((msg = gst_bus_pop(bus_)) != nullptr) {
         switch (GST_MESSAGE_TYPE(msg)) {
             case GST_MESSAGE_ERROR: {
-                // Do not log the error details: source URLs can include credentials.
-                status_ = "Falha de reproducao (consulte diagnostico privado)";
-                // Shutdown without resetting the message.
+                // Source URLs may contain credentials or tokens. Preserve only
+                // the GLib error domain/code, never the raw message/debug URL.
+                GError* error = nullptr;
+                gchar* debug = nullptr;
+                gst_message_parse_error(msg, &error, &debug);
+                if (error) {
+                    std::fprintf(stderr, "GStreamer: error domain=%s code=%d\n",
+                                 g_quark_to_string(error->domain), error->code);
+                    g_error_free(error);
+                }
+                g_free(debug);
                 gst_message_unref(msg);
                 stop();
                 status_ = "Falha de reproducao; voltou ao menu";
