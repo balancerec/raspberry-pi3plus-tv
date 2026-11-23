@@ -20,7 +20,7 @@ Data: 2026-11-23. Branch: `feature/native-fullhd-v03`. Base: `feature/native-tv-
 - [ ] Compilar v0.3 no Raspberry Pi, rodar CTest 3/3.
 - [ ] Validar cabecalho, cards e foco no sinal HDMI 1920x1080 fisico.
 - [ ] Executar `scripts/test-h264-fullhd.sh` e verificar EOS em H.264 1080p30.
-- [ ] Executar `scripts/test-h264-fullhd.sh --show` com glimagesink se driver GL suportar o formato DMA-BUF.
+- [ ] Executar `scripts/test-h264-fullhd.sh --show` em 1080p30 e avaliar a negociacao real de formatos. O teste GL em 640x360 foi concluido sem erros, mas negociou I420 em memoria convencional (nao zero-copy).
 - [ ] Medir estabilidade real, temperatura, CPU, memoria e latencia.
 - [ ] Integrar stream IPTV e audio no aplicativo C++ (nao implementado neste commit).
 
@@ -29,3 +29,25 @@ Data: 2026-11-23. Branch: `feature/native-fullhd-v03`. Base: `feature/native-tv-
 
 ## Operacao segura
 Nao parar LightDM/XFCE, nao remover `raspberry-display.service`, nao alterar rede/Bluetooth/SSH e nao configurar autostart nesta etapa. Para evitar colisao com o workspace antigo `--single-branch`, criar worktree separado a partir do ref desejado: `git fetch origin refs/heads/feature/native-fullhd-v03`; `git worktree add -b feature/native-fullhd-v03 "$HOME/raspberry-tv-fullhd" FETCH_HEAD`. Nao executar app como root.
+
+## Marco: GL/X11 validado a 640x360 (usuario, 2026-11-23)
+
+Com `gstreamer1.0-gl` recem-instalado, o comando a seguir completou normalmente:
+
+```bash
+DISPLAY=:0 gst-launch-1.0 -e -v \\
+  filesrc location=/tmp/raspberry-tv-test.h264 ! \\
+  h264parse ! v4l2h264dec ! glimagesink sync=true
+```
+
+- `GstGLDisplayX11` reconhecido;
+- fluxo negociado como `video/x-raw, format=I420, 640x360 @25fps` entre V4L2 e `glimagesinkbin`;
+- `glupload` converteu o fluxo para `video/x-raw(memory:GLMemory), format=I420`;
+- `glcolorconvert` chegou a `GLMemory/RGBA`, `texture-target=2D`;
+- `EOS` normal, `Execution ended after 0:00:05.001262706` com `sync=true`.
+
+**Importante:** neste caminho, nao houve caps `video/x-raw(memory:DMABuf)` na saida do decoder; isto nao comprova zero-copy ponta a ponta. O pipeline estabeleceu a rota GL/X11, mas o usuario ainda nao informou explicitamente se enxergou a imagem na televisao. Isso e diferente da validacao anterior com `fakesink`, que negociou DMABuf/YU12.
+
+### Proximo criterio
+
+Registrar `1920x1080,framerate=30/1` no pad de saida do decoder, `EOS` e imagem fisica no HDMI em 1080p; medir consumo de CPU/memoria e aquecimento em reproducoes mais longas antes de afirmar que o sistema sustenta IPTV Full HD.
