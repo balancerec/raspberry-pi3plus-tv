@@ -78,3 +78,24 @@ Trecho de comandos e dados observados no equipamento:
 - **B.** Forca caps `video/x-raw(memory:DMABuf),format=DMA_DRM,drm-format=YU12` na fronteira entre V4L2 e GL. A falha e dado de diagnostico, nao deve disparar alteracoes no modo HDMI ou a desativacao do X11.
 
 Arquivos gerados: `~/raspberry-tv-1080p-diagnostics/fps-gl-1080p.log` e `~/raspberry-tv-1080p-diagnostics/dmabuf-gl-1080p.log`. O teste registra erros e contadores sem exibir URLs de IPTV.
+
+## Diagnostico de desempenho enviado pelo usuario — 2026-11-23
+
+O usuario executou `scripts/diagnose-1080p-performance.sh` e obteve:
+
+- `fpsdisplaysink` / `glimagesink`, `sync=true`: ultima amostra de `last-message` = **rendered 3, dropped 29**, apos amostras que iniciaram em rendered 2 e dropped 0. Dos 32 quadros contados ate a ultima linha publicada, 29 descartados (**90,625%**). Isto nao e necessariamente a estatistica final nem inclui todos os 90 quadros do video fonte de 3s.
+- O teste A terminou com codigo zero e `Execution ended after 0:00:04.695189686`; sucesso de pipeline nao significa taxa minima sustentada.
+- Caps DMABuf explicitamente exigidas antes do `glimagesink`: erro no `h264parse` (`Internal data stream error`, `not-negotiated (-4)`) e status 1. Logo, o caminho diretamente negociado sem copias nao foi estabelecido com este DRM/GL/driver e esta caps restritiva; nao extrapolar impossibilidade absoluta de DMABuf em outras configuracoes.
+
+### Separacao de gargalos: proximo ensaio
+
+`scripts/benchmark-1080p-stages.sh` (branch v0.3) testa quatro pipelines controlados com video de 1080p:
+
+1. `v4l2h264dec ! fpsdisplaysink video-sink=fakesink sync=false`: vazao de saida do decodificador sem OpenGL (teste diagnostico, nao fluidez).
+2. `v4l2h264dec ! fpsdisplaysink video-sink=glimagesink sync=false`: custo do caminho OpenGL sem descartar atrasados por temporizacao.
+3. `v4l2h264dec ! queue ! fpsdisplaysink video-sink=glimagesink sync=true`: verificar efeito de desacoplar decoder e renderer sem mudar X11.
+4. `videotestsrc 1920x1080 I420 ! fpsdisplaysink video-sink=glimagesink sync=true`: estabelecer referencia da apresentacao OpenGL sem o decodificador H.264.
+
+Os resultados sao gravados em `~/raspberry-tv-1080p-diagnostics/01-decoder-fakesink.log`, `02-decoder-gl-nosync.log`, `03-decoder-queue-gl-sync.log` e `04-synthetic-i420-gl-sync.log`. O script nao altera servicos, modo HDMI nem credenciais.
+
+**Pendencia:** nenhum dos 4 pipelines foi executado em hardware ainda. Nao prometer 1080p30 fluido, nem atribuir com certeza o gargalo exclusivamente a CPU ou ao driver.
