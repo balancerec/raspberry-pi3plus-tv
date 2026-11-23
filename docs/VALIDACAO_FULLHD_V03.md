@@ -99,3 +99,23 @@ O usuario executou `scripts/diagnose-1080p-performance.sh` e obteve:
 Os resultados sao gravados em `~/raspberry-tv-1080p-diagnostics/01-decoder-fakesink.log`, `02-decoder-gl-nosync.log`, `03-decoder-queue-gl-sync.log` e `04-synthetic-i420-gl-sync.log`. O script nao altera servicos, modo HDMI nem credenciais.
 
 **Pendencia:** nenhum dos 4 pipelines foi executado em hardware ainda. Nao prometer 1080p30 fluido, nem atribuir com certeza o gargalo exclusivamente a CPU ou ao driver.
+
+
+## Alerta prioritario: subtensao e throttling ativos durante benchmark 2026-11-23
+
+O benchmark `scripts/benchmark-1080p-stages.sh` trouxe um resultado de alimentacao que invalida a comparacao como medida definitiva da capacidade do hardware:
+- `vcgencmd get_throttled`: **throttled=0x50005**, no inicio e ao final.
+  - Bits atuais 0x1 e 0x4: subtensao **ativa** e throttling **ativo**.
+  - Bits historicos 0x10000 e 0x40000: subtensao e throttling ocorreram desde o ultimo boot.
+- Temperatura: 41,3 C antes, 44,5 C depois, sem evidencia de limite termico.
+- `01-decoder-fakesink`: cerca de 25,9 FPS medidos com `sync=false`, 0 drops, tempo total 3947ms; abaixo da meta 30 FPS.
+- `02-decoder-gl-nosync`: ~6,5 FPS, 0 drops com `sync=false` (nao significa reproducao fluida), total 15076ms.
+- `03-decoder-queue-gl-sync`: eventos de descarte intenso, fila nao resolveu; contadores alteram entre mensagens, entao nao converter uma linha individual em taxa final do arquivo.
+- `04-synthetic-i420-gl-sync`: descarte de quadros sem decoder H264, confirmando que a apresentacao OpenGL tambem demanda investigacao.
+- A meta continua sendo 1080p/30fps; a prova de reproduccao sustentada **continua pendente**. Nao afirmar que todo gargalo foi causado pela alimentacao nem declarar impossibilidade definitiva de 1080p.
+
+Prioridade: fonte de alimentacao de boa qualidade **5,1 V / 2,5 A micro-USB**, cabo de baixa resistencia, nao usar USB da TV para alimentar. Ver recomendacao oficial: https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#power-supply e bits documentados em https://www.raspberrypi.com/documentation/computers/os.html#vcgencmd. Sempre desligar corretamente (`sudo poweroff`) antes de trocar fonte/cabo. Nao tentar "desabilitar throttling" via software.
+
+Novo script: `bash scripts/check-power-health.sh` amostra `get_throttled`, temperatura e frequencia ARM em 10 iteracoes e grava `~/raspberry-tv-1080p-diagnostics/power-status.log`. Se houver flag atual durante a medicao retorna codigo 1. Historico 0x50000 pode permanecer mesmo depois que a subtensao cessar, ate o proximo boot; o importante e que bits atuais (mascara 0xF) fiquem em 0, em repouso e em carga.
+
+Repetir os benchmarks de video **somente depois de estabilizar a fonte**, e comparar com 25,9 FPS (decoder) / 6,5 FPS (caminho GL) registrados sob subtensao. Servicos LightDM, SSH, Bluetooth e `raspberry-display.service` permanecem inalterados.
