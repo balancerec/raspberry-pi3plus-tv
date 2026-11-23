@@ -22,8 +22,8 @@
 - **Controller First:** conectar o primeiro controle compatível detectado pela SDL2. Não abrir teclado virtual ou exigir mouse para navegar.
 - Hotplug: aceitar conexão e desconexão em execução; após desconexão, tentar o próximo controle disponível.
 - D-pad tem prioridade sobre analógico esquerdo para impedir comandos duplicados.
-- Analógico possui zona morta com histerese: ativa em ±18000, libera abaixo de ±11000.
-- Navegação por direção: ação imediata, repetição após 350 ms e depois a cada 120 ms enquanto segurado.
+- Analógico possui zona morta com histerese: ativa em ±22000, libera abaixo de ±12000; mudança precisa permanecer estável por 80 ms.
+- Navegação por direção: **uma ação por pressionamento**, sem repetição automática ao segurar D-pad ou analógico; o D-pad responde imediatamente e o analógico aguarda estabilidade de 80 ms.
 - Botões de ação: uma emissão por pressionamento; gatilhos ativam acima de 20000 e liberam abaixo de 12000.
 - Quando nenhum controle estiver conectado, usar teclado como fallback: setas, Enter, Esc, Home, F1, PageUp e PageDown.
 - Não assumir que o botão PS chega ao programa em todos os sistemas Linux: alguns ambientes podem interceptá-lo. Testar no Raspberry real.
