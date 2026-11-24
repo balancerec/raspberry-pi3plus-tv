@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iterator>
+#include <unordered_set>
 #include <utility>
 namespace raspberry_tv {
 namespace {
@@ -36,6 +37,10 @@ std::vector<Channel> parseM3u(std::istream& input, std::size_t limit) {
             if (pendingName.empty()) pendingName = attribute(line, "tvg-name");
             continue;
         }
+        if (line.rfind("#EXTGRP:",0) == 0) {
+            pendingGroup = trim(line.substr(8));
+            continue;
+        }
         if (line[0] == '#') continue;
         result.push_back({pendingName.empty() ? "Canal " + std::to_string(result.size() + 1) : pendingName,
                           pendingGroup.empty() ? "Sem categoria" : pendingGroup, line});
@@ -50,6 +55,12 @@ bool TvModel::loadPlaylist(const std::string& path) {
     auto loaded = parseM3u(file);
     if (loaded.empty()) { message_ = "Playlist sem canais reconhecidos"; return false; }
     channels_ = std::move(loaded);
+    groups_.clear();
+    std::unordered_set<std::string> found;
+    for (const Channel& channel : channels_)
+        if (found.insert(channel.group).second) groups_.push_back(channel.group);
+    groupIndex_ = 0;
+    rebuildChannels();
     favorites_.clear();
     selectedRow_ = 0;
     playlistPath_ = path;
@@ -70,8 +81,35 @@ const char* TvModel::viewTitle(View view) {
 }
 std::size_t TvModel::visibleCount() const {
     if (view_ == View::Favorites) return favorites_.size();
-    if (view_ == View::Channels) return channels_.size();
+    if (view_ == View::Channels) return visibleChannels_.size();
     return 0;
+}
+std::string TvModel::activeGroup() const {
+    return groupIndex_ == 0 || groupIndex_ > groups_.size() ?
+        "TODOS" : groups_[groupIndex_ - 1];
+}
+void TvModel::rebuildChannels() {
+    visibleChannels_.clear();
+    for (std::size_t i = 0; i < channels_.size(); ++i) {
+        if (groupIndex_ == 0 || channels_[i].group == groups_[groupIndex_-1])
+            visibleChannels_.push_back(i);
+    }
+}
+void TvModel::changeGroup(int direction) {
+    if (view_ != View::Channels || groups_.empty()) return;
+    const std::size_t count = groups_.size() + 1;
+    groupIndex_ = (groupIndex_ + (direction > 0 ? 1 : count - 1)) % count;
+    rebuildChannels();
+    selectedRow_ = 0;
+    message_ = "Grupo: " + activeGroup();
+}
+bool TvModel::stepChannel(int direction) {
+    const std::size_t count = visibleCount();
+    if (!count || (view_ != View::Channels && view_ != View::Favorites)) return false;
+    const std::size_t next = (selectedRow_ + (direction > 0 ? 1 : count - 1)) % count;
+    const bool changed = next != selectedRow_;
+    selectedRow_ = next;
+    return changed;
 }
 std::size_t TvModel::channelIndexAt(std::size_t row) const {
     if (view_ == View::Favorites) {
@@ -80,7 +118,7 @@ std::size_t TvModel::channelIndexAt(std::size_t row) const {
         std::advance(it, static_cast<long>(row));
         return *it;
     }
-    return row < channels_.size() ? row : channels_.size();
+    return row < visibleChannels_.size() ? visibleChannels_[row] : channels_.size();
 }
 const Channel* TvModel::selectedChannel() const {
     if (selectedRow_ >= visibleCount()) return nullptr;
@@ -153,6 +191,10 @@ void TvModel::dispatch(Action action) {
         return;
     }
     if (action == Action::PreviousCategory || action == Action::NextCategory) {
+        if (view_ == View::Channels) {
+            changeGroup(action == Action::NextCategory ? 1 : -1);
+            return;
+        }
         constexpr View categories[] = {View::Channels,View::Library,View::Favorites,
                                        View::Apps,View::System,View::Settings};
         const auto it = std::find(std::begin(categories), std::end(categories), view_);
@@ -162,12 +204,14 @@ void TvModel::dispatch(Action action) {
         return;
     }
     if (view_ == View::Channels || view_ == View::Favorites) {
-        if (action == Action::Up || action == Action::PreviousChannel) move(-1);
-        if (action == Action::Down || action == Action::NextChannel) move(1);
+        if (action == Action::Up) move(-1);
+        if (action == Action::Down) move(1);
+        if (action == Action::PreviousChannel) stepChannel(-1);
+        if (action == Action::NextChannel) stepChannel(1);
         if (action == Action::Left) for (int i = 0; i < 8; ++i) move(-1);
         if (action == Action::Right) for (int i = 0; i < 8; ++i) move(1);
         if (action == Action::Confirm) {
-            message_ = selectedChannel() ? "Reproducao de video sera integrada na proxima etapa" :
+            message_ = selectedChannel() ? "Pressione X para reproduzir" :
                                           "Importe uma playlist M3U com --playlist CAMINHO";
         }
     }
