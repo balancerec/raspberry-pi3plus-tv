@@ -29,5 +29,5 @@ mkdir -p "$root/dist"
 package="$root/dist/raspberry-tv-$release-arm64.tar.gz"
 [ ! -e "$package" ] || { printf 'Pacote ja existe; nao sera sobrescrito: %s\n' "$package" >&2; exit 1; }
 tar -C "$work" -czf "$package" "$(basename "$stage")"
-sha256sum "$package" > "$package.sha256"
+(cd "$root/dist" && sha256sum "$(basename "$package")") > "$package.sha256"
 printf 'Pacote gerado (validacao fisica ainda necessaria): %s\n' "$package"
