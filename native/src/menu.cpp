@@ -119,7 +119,8 @@ void TvModel::changeGroup(int direction) {
 }
 bool TvModel::stepChannel(int direction) {
     const std::size_t count = visibleCount();
-    if (!count || (view_ != View::Channels && view_ != View::Favorites)) return false;
+    if (!count || direction == 0 ||
+        (view_ != View::Channels && view_ != View::Favorites)) return false;
     const std::size_t next = (selectedRow_ + (direction > 0 ? 1 : count - 1)) % count;
     const bool changed = next != selectedRow_;
     selectedRow_ = next;
