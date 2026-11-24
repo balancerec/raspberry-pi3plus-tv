@@ -2,6 +2,9 @@
 #include "tv/display.hpp"
 #include <sys/sysinfo.h>
 #include <array>
+#include <algorithm>
+#include <cstdint>
+#include <vector>
 #include <ctime>
 #include <fstream>
 #include <string>
@@ -66,6 +69,11 @@ bool TvUi::init() {
     return false;
 }
 void TvUi::close() {
+    for(auto& item:cache_)SDL_DestroyTexture(item.second.texture);
+    cache_.clear();cacheBytes_=0;
+    if(osdRenderer_)SDL_DestroyRenderer(osdRenderer_);
+    if(osdWindow_)SDL_DestroyWindow(osdWindow_);
+    osdRenderer_=nullptr;osdWindow_=nullptr;osdVisible_=false;
     if(title_) TTF_CloseFont(title_);
     if(heading_) TTF_CloseFont(heading_);
     if(body_) TTF_CloseFont(body_);
@@ -75,20 +83,66 @@ void TvUi::close() {
 }
 void TvUi::text(SDL_Renderer* r,TTF_Font* font,const std::string& value,
                 int x,int y,SDL_Color color,int maxWidth) {
-    if(!font || value.empty()) return;
-    SDL_Surface* surface=TTF_RenderUTF8_Blended(font,value.c_str(),color);
-    if(!surface) return;
-    SDL_Texture* texture=SDL_CreateTextureFromSurface(r,surface);
-    if(texture) {
-        const int physicalMaxWidth = display::toNative(maxWidth);
-        const double scale=surface->w>physicalMaxWidth ?
-            static_cast<double>(physicalMaxWidth)/surface->w : 1.0;
-        SDL_Rect dest{display::toNative(x),display::toNative(y),
-                      static_cast<int>(surface->w*scale),static_cast<int>(surface->h*scale)};
-        SDL_RenderCopy(r,texture,nullptr,&dest);
-        SDL_DestroyTexture(texture);
+    if(!font || value.empty())return;
+    const auto key=std::to_string(reinterpret_cast<std::uintptr_t>(r))+":"+std::to_string(reinterpret_cast<std::uintptr_t>(font))+":"+
+        std::to_string(color.r)+":"+std::to_string(color.g)+":"+std::to_string(color.b)+":"+std::to_string(color.a)+":"+std::to_string(maxWidth)+":"+value;
+    auto found=cache_.find(key);
+    if(found==cache_.end()) {
+        const int width=display::toNative(maxWidth);
+        std::string label=value;int w=0,h=0;
+        if(TTF_SizeUTF8(font,label.c_str(),&w,&h)!=0)return;
+        if(w>width) {
+            std::vector<std::size_t> boundaries{0};
+            for(std::size_t i=0;i<label.size();++i)
+                if(i+1==label.size() || (static_cast<unsigned char>(label[i+1])&0xc0)!=0x80)boundaries.push_back(i+1);
+            std::size_t low=0,high=boundaries.size()-1;
+            while(low<high) {
+                const auto mid=(low+high+1)/2;
+                const auto prefix=label.substr(0,boundaries[mid])+"...";
+                if(TTF_SizeUTF8(font,prefix.c_str(),&w,&h)==0 && w<=width)low=mid;else high=mid-1;
+            }
+            label=label.substr(0,boundaries[low])+"...";
+        }
+        SDL_Surface* surface=TTF_RenderUTF8_Blended(font,label.c_str(),color);if(!surface)return;
+        Text entry;entry.w=surface->w;entry.h=surface->h;entry.bytes=static_cast<std::size_t>(entry.w)*entry.h*4;
+        entry.texture=SDL_CreateTextureFromSurface(r,surface);SDL_FreeSurface(surface);if(!entry.texture)return;
+        while(!cache_.empty() && (cache_.size()>=192 || cacheBytes_+entry.bytes>12*1024*1024)) {
+            auto oldest=std::min_element(cache_.begin(),cache_.end(),[](const auto& a,const auto& b){return a.second.used<b.second.used;});
+            cacheBytes_-=oldest->second.bytes;SDL_DestroyTexture(oldest->second.texture);cache_.erase(oldest);
+        }
+        cacheBytes_+=entry.bytes;found=cache_.emplace(key,entry).first;
     }
-    SDL_FreeSurface(surface);
+    found->second.used=++use_;
+    SDL_Rect dest{display::toNative(x),display::toNative(y),found->second.w,found->second.h};
+    SDL_RenderCopy(r,found->second.texture,nullptr,&dest);
+}
+bool TvUi::initOsd(SDL_Window* parent) {
+    int x=0,y=0,w=1920,h=1080;SDL_GetWindowPosition(parent,&x,&y);SDL_GetWindowSize(parent,&w,&h);
+    osdWindow_=SDL_CreateWindow("Raspberry TV - Informacoes",x,y+h-144,w,144,
+        SDL_WINDOW_HIDDEN|SDL_WINDOW_BORDERLESS|SDL_WINDOW_ALWAYS_ON_TOP|SDL_WINDOW_SKIP_TASKBAR);
+    if(!osdWindow_)return false;
+    osdRenderer_=SDL_CreateRenderer(osdWindow_,-1,SDL_RENDERER_ACCELERATED);
+    if(!osdRenderer_)osdRenderer_=SDL_CreateRenderer(osdWindow_,-1,SDL_RENDERER_SOFTWARE);
+    if(!osdRenderer_){SDL_DestroyWindow(osdWindow_);osdWindow_=nullptr;return false;}
+    return SDL_RenderSetLogicalSize(osdRenderer_,1920,144)==0;
+}
+void TvUi::drawOsd(SDL_Window* parent,const Channel* channel,const PlayerSnapshot& state,bool help,bool visible) {
+    if(!osdWindow_ || !osdRenderer_)return;
+    if(!visible) {if(osdVisible_)SDL_HideWindow(osdWindow_);osdVisible_=false;return;}
+    if(!osdVisible_) {
+        int x,y,w,h;SDL_GetWindowPosition(parent,&x,&y);SDL_GetWindowSize(parent,&w,&h);
+        SDL_SetWindowPosition(osdWindow_,x,y+h-144);SDL_SetWindowSize(osdWindow_,w,144);
+        SDL_ShowWindow(osdWindow_);SDL_RaiseWindow(osdWindow_);SDL_SetWindowInputFocus(parent);osdVisible_=true;
+    }
+    fill(osdRenderer_,{0,0,1280,96},Dark);
+    const std::string label=channel?channel->name+" | "+channel->group:"TV AO VIVO";
+    text(osdRenderer_,body_,label,20,5,White,900);
+    text(osdRenderer_,small_,std::string(playbackStateName(state.state))+" "+std::to_string(state.buffering)+"%",940,12,Mint,320);
+    const auto audio=state.muted?"MUDO":"Volume "+std::to_string(static_cast<int>(state.volume*100+0.5))+"%";
+    const auto audioInfo=state.audioStreams==0?" | Sem trilha de audio":"";
+    text(osdRenderer_,small_,audio+audioInfo+" | "+state.status,20,38,Mint,1230);
+    text(osdRenderer_,small_,help?"X Pausa | O Para/cancela | PS Inicio | L2/R2 Canais | Cima/Baixo Volume | Quadrado Mudo | Triangulo Favorito":"Options: controles | O: parar/cancelar",20,68,Muted,1230);
+    SDL_RenderPresent(osdRenderer_);
 }
 void TvUi::panel(SDL_Renderer* r,SDL_Rect rect,SDL_Color color,bool selected) {
     fill(r,rect,color);
@@ -142,12 +196,16 @@ void TvUi::content(SDL_Renderer* r,const TvModel& model) {
                  "CONTROLE PS4 / NAVEGACAO NATIVA";
     if(listing && model.visibleCount())
         sub+="   •   "+std::to_string(model.selectedRow()+1)+" / "+std::to_string(model.visibleCount());
+    if(model.view()==View::Channels) {
+        std::string group=model.activeGroup();
+        sub+="   |   GRUPO: "+group+"  (L1/R1)";
+    }
     text(r,body_,sub,64,214,Mint,1080);
     panel(r,{60,263,1160,358},Panel);
     if(listing) {
         if(!model.visibleCount()) {
             text(r,heading_,model.view()==View::Channels?
-                "NENHUMA PLAYLIST CARREGADA":"SEM FAVORITOS",92,341,White,1000);
+                model.channels().empty() ? "NENHUMA PLAYLIST CARREGADA" : "GRUPO SEM CANAIS" : "SEM FAVORITOS",92,341,White,1000);
             text(r,body_,model.view()==View::Channels?
                 "Inicie com --playlist /caminho/Playlist_VLC.m3u":
                 "Em TV AO VIVO, pressione TRIANGULO para favoritar.",92,393,Muted,980);
@@ -170,19 +228,25 @@ void TvUi::content(SDL_Renderer* r,const TvModel& model) {
     if(model.view()==View::System) {
         text(r,heading_,"STATUS DO DISPOSITIVO",94,299,White);
         text(r,body_,"Memoria: "+memoryText(),96,363,Mint);
-        text(r,body_,"Arquitetura: Raspberry Pi / ARM64",96,406,White);
+        text(r,body_,"Plataforma de destino: Raspberry Pi / ARM64",96,406,White);
         text(r,body_,"Temperatura: "+temperatureText(),96,448,White);
-        text(r,body_,"H.264 V4L2: dispositivo esperado em /dev/video10",96,491,Muted);
+        text(r,body_,"Use o diagnostico para verificar plugins e alimentacao.",96,491,Muted);
     } else if(model.view()==View::Settings) {
-        text(r,heading_,"CONTROLE COMO NAVEGACAO PADRAO",94,300,White);
-        text(r,body_,"PS4 por USB / Bluetooth; teclado como alternativa",96,362,Mint);
-        text(r,body_,"D-pad: um movimento por pressionamento",96,405,White);
-        text(r,body_,"Options: ajuda   PS: inicio   O: voltar",96,448,Muted);
-        text(r,body_,"Esta interface nao altera as configuracoes do DietPi.",96,491,Muted);
+        const std::string rows[]={
+            std::string("Tela cheia: ")+(settings_.fullscreen?"SIM":"NAO"),
+            std::string("Informacoes no video: ")+(settings_.showOsd?"SIM":"NAO"),
+            std::string("Lembrar selecao (sem autoplay): ")+(settings_.resumeSelection?"SIM":"NAO"),
+            "Recarregar playlist local", "Encerrar Raspberry TV"};
+        for(std::size_t i=0;i<5;++i) {
+            int y=288+static_cast<int>(i)*55;
+            if(model.selectedRow()==i)panel(r,{78,y,1120,47},{33,81,76,255},true);
+            text(r,body_,rows[i],96,y+7,i==model.selectedRow()?Mint:White,1080);
+        }
+
     } else {
-        text(r,heading_,"MODULO EM PREPARACAO",94,347,White);
-        text(r,body_,"Os menus ja estao integrados ao motor C++.",96,410,Mint);
-        text(r,body_,"A proxima etapa conecta os servicos e o player.",96,457,Muted);
+        text(r,heading_,"FORA DO ESCOPO DA RELEASE 1.0",94,347,White);
+        text(r,body_,"Use TV AO VIVO ou FAVORITOS para reproduzir.",96,410,Mint);
+        text(r,body_,"Este modulo nao oferece servicos nesta release.",96,457,Muted);
     }
 }
 void TvUi::overlay(SDL_Renderer* r,const TvModel& model) {
@@ -191,10 +255,11 @@ void TvUi::overlay(SDL_Renderer* r,const TvModel& model) {
     panel(r,{212,165,856,385},{18,41,51,255});
     if(model.showHelp()) {
         text(r,heading_,"CONTROLE PS4 - COMANDOS",250,202,Mint,750);
-        text(r,body_,"D-PAD / ANALOGICO     Navegar",250,274,White);
-        text(r,body_,"X Confirmar    O Voltar    PS Inicio",250,326,White);
-        text(r,body_,"L1/R1 Categorias    L2/R2 Canais",250,378,White);
-        text(r,body_,"TRIANGULO Favorito    QUADRADO Detalhes",250,429,White);
+        text(r,body_,"D-PAD Navegar    X Reproduzir    O Voltar",250,264,White,760);
+        text(r,small_,"L1/R1 Filtrar grupos na lista de TV ao vivo",250,320,White,760);
+        text(r,small_,"L2/R2 Trocar canais    TRIANGULO Favoritos",250,356,White,760);
+        text(r,small_,"No video: CIMA/BAIXO Volume  QUADRADO Mudo",250,392,White,760);
+        text(r,small_,"No video: X Pausa    PS Inicio    O Parar",250,429,White,760);
         text(r,small_,"O ou OPTIONS para fechar",252,496,Muted);
     } else {
         const Channel* ch=model.selectedChannel();
@@ -215,7 +280,9 @@ void TvUi::draw(SDL_Renderer* r,const TvModel& model,bool controllerConnected) {
     if(model.view()==View::Home) home(r,model);else content(r,model);
     fill(r,{0,654,1280,66},{6,18,23,245});
     fill(r,{53,654,1176,1},{39,76,80,255});
-    text(r,small_,"X ABRIR   O VOLTAR   PS INICIO   OPTIONS AJUDA",54,673,Muted,820);
+    text(r,small_,model.view()==View::Channels ?
+         "X ABRIR   L1/R1 GRUPOS   L2/R2 CANAIS   O VOLTAR" :
+         "X ABRIR   O VOLTAR   PS INICIO   OPTIONS AJUDA",54,673,Muted,820);
     text(r,small_,model.message(),848,673,Mint,371);
     overlay(r,model);
     SDL_RenderPresent(r);

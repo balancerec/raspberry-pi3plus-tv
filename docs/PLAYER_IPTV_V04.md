@@ -72,8 +72,10 @@ Se o video ficar lento, pressionar ○ e retornar ao menu. Um video de 5 segundo
 
 - [x] Branch e modulo GStreamer de player estruturados.
 - [x] Mapeamento de comandos de playback no shell SDL.
-- [ ] Build C++ GStreamer no Raspberry (nao executado remotamente).
-- [ ] CTest 3/3 e teste com arquivo local, abertura do canal e retorno pelo ○.
+- [x] Build C++ GStreamer no Raspberry (confirmado pelo usuario: 100% Built target raspberry-tv-native).
+- [x] CTest 3/3 (controller_input, menu_navigation_and_m3u, fullhd_native_pixels), 0 falhas em 0,07s, confirmado no Raspberry.
+- [x] Teste funcional parcial com arquivo local: abertura do canal e transicoes PLAYING→EOS confirmadas pelo console.
+- [ ] Testar interrupcao pelo ○ antes de EOS e retorno efetivo a lista.
 - [ ] Confirmar X11 `GstVideoOverlay` sobre a janela SDL com o driver real.
 - [ ] Testar fontes de canais M3U com permissao de uso, protocolos e audio.
 - [ ] Validar troca de canais e buffering real.
@@ -85,3 +87,128 @@ Se o video ficar lento, pressionar ○ e retornar ao menu. Um video de 5 segundo
 - GstVideoOverlay: https://gstreamer.freedesktop.org/documentation/video/gstvideooverlay.html
 - playbin: https://gstreamer.freedesktop.org/documentation/playback/playbin.html
 - glimagesink: https://gstreamer.freedesktop.org/documentation/opengl/glimagesink.html
+
+## Validacao de compilacao em hardware — 2026-11-23
+
+Usuario executou `cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release`, `cmake --build build/native -j2` e `ctest --test-dir build/native --output-on-failure` em `~/raspberry-tv-player`. O executavel nativo foi construido, 3/3 testes aprovados (`controller_input`, `menu_navigation_and_m3u`, `fullhd_native_pixels`), tempo CTest 0,07 s. As bibliotecas `libgstreamer1.0-dev 1.26.2-2` e `libgstreamer-plugins-base1.0-dev 1.26.2-1+rpt3+deb13u2` estavam previamente instaladas. Esta validacao **nao testa o pipeline de exibicao real**, integrado por GstVideoOverlay/X11, nem o retorno do video ao menu. O primeiro smoke test deve usar arquivo pequeno de 640x360 e M3U `file:///tmp/...`, evitando forcar fluxo Full HD durante a subtensao.
+
+## Correcao do ciclo de vida GStreamer — 2026-11-23
+
+### Relato em hardware
+
+Primeiro teste da v0.4 com `DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen --playlist /tmp/raspberry-tv-teste.m3u`:
+
+- `Renderizador: opengl`; dimensoes internas/saida `1920x1080`.
+- `Playlist carregada: 1 canais`.
+- `Controle principal: PS4 Controller (0)`; eventos `confirm`, `up`, `menu`, `menu`, `confirm`.
+- Ao encerrar com `Ctrl+C`: `GStreamer-CRITICAL gst_element_set_state: assertion 'GST_IS_ELEMENT (element)' failed` e `gst_object_unref: assertion '((GObject *) object)->ref_count > 0' failed`.
+- **O log nao comprova que o video apareceu**, somente funcionamento da interface e do parser.
+
+### Correcao implementada (pendente de reteste no Raspberry)
+
+- O codigo anterior usava `g_object_set(playbin,"video-sink",sink)` seguido de `gst_object_unref(sink)` sem afirmar posse explicita de sua referencia flutuante. Agora tanto o `playbin` quanto o `glimagesink` sao estabilizados por `gst_object_ref_sink()` antes de transferencias de propriedade. O padrao foi conferido com o proprio codigo fonte da implementacao GStreamer.
+- Adicionado metodo idempotente `TvPlayer::shutdown()`: `GST_STATE_NULL`, espera limitada de estado, libera `GstBus` e `playbin` **antes** de `SDL_DestroyWindow`, preservando validade do XID.
+- Sinais SIGINT/SIGTERM so alteram `sig_atomic_t` e a limpeza ocorre no loop principal; sem chamadas de GStreamer dentro do handler.
+- Marcadores seguros no console `Player: abertura solicitada...`, `GStreamer: transicao para PLAYING confirmada`, `GStreamer: fim de fluxo recebido (EOS)`, sem URLs/token.
+- Novo teste automatizado `gstreamer_object_lifecycle`: 24 ciclos de criar `playbin` e `fakesink`, atribuir propriedade, mudar estado, desalocar. Qualquer CRITICAL do GLib vira falha de teste.
+- Esperado na nova compilacao: **CTest 4/4**, mas ainda nao executado fisicamente. Esse teste de referencias isoladas **nao substitui** smoke test de video na janela SDL/X11.
+
+### Procedimento de reteste
+
+```bash
+cd ~/raspberry-tv-player
+git fetch origin refs/heads/feature/native-iptv-playback-v04
+git merge --ff-only FETCH_HEAD
+cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release
+cmake --build build/native -j2
+ctest --test-dir build/native --output-on-failure
+DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen --playlist /tmp/raspberry-tv-teste.m3u
+```
+
+Aperte × para entrar em TV AO VIVO e × novamente para abrir o arquivo MP4. Verifique se o video e exibido; ○ para voltar. `Ctrl+C` apenas depois de concluir o teste para validar a limpeza. Nao alterar LightDM, xrandr, fonte, Bluetooth ou outros servicos.
+
+
+## Reteste do player apos correcao de referencias — 2026-11-23
+
+O usuario executou:
+
+```bash
+DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen \
+  --playlist /tmp/raspberry-tv-teste.m3u
+```
+
+Mensagens registradas:
+
+```text
+Renderizador: opengl
+Renderizacao interna: 1920 x 1080; saida atual: 1920 x 1080
+Playlist carregada: 1 canais
+Controle principal: PS4 Controller (0)
+Acao: confirm
+Acao: confirm
+Player: abertura solicitada ao GStreamer (URL omitida)
+GStreamer: transicao para PLAYING confirmada
+GStreamer: fim de fluxo recebido (EOS)
+^C
+```
+
+- [x] Canal local selecionado por dois comandos `confirm` do DualShock 4.
+- [x] GStreamer confirmou transicao `PLAYING` e depois `EOS` normal.
+- [x] Encerramento com Ctrl+C sem repetir as mensagens `GStreamer-CRITICAL` observadas anteriormente.
+- [x] Confirmacao visual do usuario sobre exibicao do video na TV, coletada em 2026-11-23.
+- [x] Pressionar ○ durante video local longo gerou `Acao: back` e o usuario confirmou retorno visual ao menu.
+- [ ] Confirmar navegacao do menu depois de EOS (o retorno visual apos botao ○ ja foi confirmado).
+- [ ] Medir FPS e audio em canais reais, mantendo registro da fonte sob subtensao.
+
+A correção de controle de ciclo de vida passou no reteste funcional de PLAYING→EOS→Ctrl+C; isso nao significa que todos os caminhos de erro e troca de canal tenham sido exercitados. `CTest 4/4` ainda nao foi relatado nesta rodada, portanto permanece pendente de confirmacao explicita.
+
+## Reteste com playlist de 30 segundos — 2026-11-23
+
+Com `DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen --playlist /tmp/raspberry-tv-teste-longo.m3u`, o usuario relatou no terminal:
+
+```text
+Renderizador: opengl
+Renderizacao interna: 1920 x 1080; saida atual: 1920 x 1080
+Playlist carregada: 1 canais
+Controle principal: PS4 Controller (0)
+Controle principal: PS4 Controller (1)
+Acao: confirm
+Acao: confirm
+Player: abertura solicitada ao GStreamer (URL omitida)
+GStreamer: transicao para PLAYING confirmada
+GStreamer: fim de fluxo recebido (EOS)
+^C
+```
+
+- [x] Arquivo de teste longo carregado via M3U, reproduzido pelo pipeline ate `EOS` sem erro critico de GStreamer.
+- [x] Dois `confirm` do DualShock identificados.
+- [x] Usuario confirmou visualmente que o video foi exibido na TV durante a reproducao (2026-11-23).
+- [ ] Confirmar interrupt manual com ○: **o log nao mostra `Acao: back`** antes de `EOS`, logo ainda nao houve prova dessa funcao.
+- [ ] Esclarecer segunda identificacao do controle `PS4 Controller (0)` e `PS4 Controller (1)`. IDs distintos sugerem recriacao/reconexao do dispositivo, mas so os logs nao provam falha Bluetooth ou causa de alimentacao.
+- [ ] Confirmar duracao efetiva do MP4 com `ffprobe`, pois o log nao inclui tempos.
+
+Proximo teste: rodar `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 /tmp/raspberry-tv-teste-longo.mp4`; iniciar UI, apertar ○ poucos segundos apos X e verificar `Acao: back` e menu responsivo. Sem novos benchmarks 1080p sob subtensao, sem alterar fonte nem servicos do DietPi.
+
+
+## Reteste de interrupcao pelo controle — 2026-11-23
+
+O usuario executou o aplicativo em `1920x1080`, com um canal local e controle `PS4 Controller (0)`. O log registrou `down`, `up`, `down`, `up`, dois `confirm`, abertura do GStreamer, transicao `PLAYING` e, durante a reproducao, `Acao: back`. Encerramento posterior com Ctrl+C. Nenhuma mensagem GStreamer-CRITICAL apareceu.
+
+- [x] Botao circulo gerou o comando `back` enquanto o player estava ativo.
+- [x] O caminho C++ no codigo chama `player.stop()`, atualiza mensagem e marca redraw do menu ao receber `back` durante reproducao.
+- [x] Usuario confirmou visualmente que o menu reapareceu apos pressionar ○; a navegacao apos retorno ainda nao foi testada explicitamente.
+- [x] Usuario confirmou video visivel na televisao durante a reproducao.
+- [ ] Continuar teste de audio, troca real de canais e fluidez sem ignorar a subtensao ativa.
+
+Observacao: neste reteste nao houve `EOS` no log porque houve interrupcao antecipada, diferente do teste anterior.
+
+## Aceite funcional visual da v0.4 — 2026-11-23
+
+O usuario confirmou explicitamente dois itens apos executar `DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen --playlist /tmp/raspberry-tv-teste-longo.m3u` e acionar o DualShock 4:
+
+- [x] **Video visivel na televisao** durante a reproducao do canal de teste local.
+- [x] **Menu reaparece visualmente** apos pressionar o botao ○ (`Acao: back`).
+
+Com os logs anteriores, isto valida o ciclo funcional basico de selecao de canal M3U → `PLAYING` → video visivel → interrupcao pelo botao ○ → menu restaurado. O console da rodada nao apresentou GStreamer-CRITICAL e a saida SDL continua 1920x1080.
+
+**Nao confundir com validacao de IPTV real ou de fluidez 1080p30:** o video fonte do smoke test era de baixa resolucao; video 1080p GL teve perdas importantes de quadros sob alimentacao insuficiente (`throttled=0x50005`). Audio, estabilidade em canais ao vivo, reconexao e navegacao apos retorno permanecem a verificar. A fonte atual sera mantida por decisao do usuario, respeitando protecoes de hardware.
