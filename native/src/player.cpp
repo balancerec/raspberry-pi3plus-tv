@@ -191,6 +191,7 @@ bool TvPlayer::poll() {
                 return true;
             }
             case GST_MESSAGE_EOS:
+                std::puts("GStreamer: fim de fluxo recebido (EOS)");
                 gst_message_unref(msg);
                 stop();
                 status_ = "Fim do fluxo";
@@ -215,6 +216,7 @@ bool TvPlayer::poll() {
                     gst_message_parse_state_changed(msg,&oldState,&newState,&pending);
                     if (newState == GST_STATE_PLAYING && !paused_) {
                         status_ = "Reproduzindo";
+                        std::puts("GStreamer: transicao para PLAYING confirmada");
                         changed = true;
                     }
                 }
