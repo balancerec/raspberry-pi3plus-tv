@@ -7,7 +7,17 @@
 namespace raspberry_tv {
 
 TvPlayer::~TvPlayer() {
-    stop();
+    shutdown();
+}
+
+void TvPlayer::shutdown() {
+    // GstObject starts with a floating reference. The application explicitly
+    // owns playbin_ until it has been stopped and the X11 overlay is gone.
+    if (playbin_) {
+        gst_element_set_state(playbin_, GST_STATE_NULL);
+        // Bounded wait: do not hang the UI indefinitely on a damaged stream.
+        gst_element_get_state(playbin_, nullptr, nullptr, GST_SECOND);
+    }
     if (bus_) {
         gst_object_unref(bus_);
         bus_ = nullptr;
@@ -16,6 +26,11 @@ TvPlayer::~TvPlayer() {
         gst_object_unref(playbin_);
         playbin_ = nullptr;
     }
+    active_ = false;
+    paused_ = false;
+    live_ = false;
+    ready_ = false;
+    windowHandle_ = 0;
 }
 
 bool TvPlayer::initialize(SDL_Window* window) {
@@ -49,6 +64,9 @@ bool TvPlayer::createPipeline() {
         status_ = "GStreamer playbin indisponivel";
         return false;
     }
+    // Claim the floating reference before any property assignments or
+    // parent ownership transfers, so teardown never uses a dangling pointer.
+    gst_object_ref_sink(GST_OBJECT(playbin_));
     GstElement* sink = gst_element_factory_make("glimagesink", "raspberry-tv-video");
     if (!sink) {
         status_ = "GStreamer glimagesink indisponivel";
@@ -56,6 +74,7 @@ bool TvPlayer::createPipeline() {
         playbin_ = nullptr;
         return false;
     }
+    gst_object_ref_sink(GST_OBJECT(sink));
     if (!GST_IS_VIDEO_OVERLAY(sink)) {
         status_ = "Renderizador GL nao suporta VideoOverlay";
         gst_object_unref(sink);
@@ -67,6 +86,7 @@ bool TvPlayer::createPipeline() {
     gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(sink), windowHandle_);
     gst_video_overlay_handle_events(GST_VIDEO_OVERLAY(sink), FALSE);
     g_object_set(G_OBJECT(playbin_), "video-sink", sink, nullptr);
+    // playbin keeps its own reference. This releases only our explicit ref.
     gst_object_unref(sink);
 
     bus_ = gst_element_get_bus(playbin_);
