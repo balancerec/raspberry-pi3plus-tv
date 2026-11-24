@@ -90,3 +90,38 @@ Se o video ficar lento, pressionar ○ e retornar ao menu. Um video de 5 segundo
 ## Validacao de compilacao em hardware — 2026-11-23
 
 Usuario executou `cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release`, `cmake --build build/native -j2` e `ctest --test-dir build/native --output-on-failure` em `~/raspberry-tv-player`. O executavel nativo foi construido, 3/3 testes aprovados (`controller_input`, `menu_navigation_and_m3u`, `fullhd_native_pixels`), tempo CTest 0,07 s. As bibliotecas `libgstreamer1.0-dev 1.26.2-2` e `libgstreamer-plugins-base1.0-dev 1.26.2-1+rpt3+deb13u2` estavam previamente instaladas. Esta validacao **nao testa o pipeline de exibicao real**, integrado por GstVideoOverlay/X11, nem o retorno do video ao menu. O primeiro smoke test deve usar arquivo pequeno de 640x360 e M3U `file:///tmp/...`, evitando forcar fluxo Full HD durante a subtensao.
+
+## Correcao do ciclo de vida GStreamer — 2026-11-23
+
+### Relato em hardware
+
+Primeiro teste da v0.4 com `DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen --playlist /tmp/raspberry-tv-teste.m3u`:
+
+- `Renderizador: opengl`; dimensoes internas/saida `1920x1080`.
+- `Playlist carregada: 1 canais`.
+- `Controle principal: PS4 Controller (0)`; eventos `confirm`, `up`, `menu`, `menu`, `confirm`.
+- Ao encerrar com `Ctrl+C`: `GStreamer-CRITICAL gst_element_set_state: assertion 'GST_IS_ELEMENT (element)' failed` e `gst_object_unref: assertion '((GObject *) object)->ref_count > 0' failed`.
+- **O log nao comprova que o video apareceu**, somente funcionamento da interface e do parser.
+
+### Correcao implementada (pendente de reteste no Raspberry)
+
+- O codigo anterior usava `g_object_set(playbin,"video-sink",sink)` seguido de `gst_object_unref(sink)` sem afirmar posse explicita de sua referencia flutuante. Agora tanto o `playbin` quanto o `glimagesink` sao estabilizados por `gst_object_ref_sink()` antes de transferencias de propriedade. O padrao foi conferido com o proprio codigo fonte da implementacao GStreamer.
+- Adicionado metodo idempotente `TvPlayer::shutdown()`: `GST_STATE_NULL`, espera limitada de estado, libera `GstBus` e `playbin` **antes** de `SDL_DestroyWindow`, preservando validade do XID.
+- Sinais SIGINT/SIGTERM so alteram `sig_atomic_t` e a limpeza ocorre no loop principal; sem chamadas de GStreamer dentro do handler.
+- Marcadores seguros no console `Player: abertura solicitada...`, `GStreamer: transicao para PLAYING confirmada`, `GStreamer: fim de fluxo recebido (EOS)`, sem URLs/token.
+- Novo teste automatizado `gstreamer_object_lifecycle`: 24 ciclos de criar `playbin` e `fakesink`, atribuir propriedade, mudar estado, desalocar. Qualquer CRITICAL do GLib vira falha de teste.
+- Esperado na nova compilacao: **CTest 4/4**, mas ainda nao executado fisicamente. Esse teste de referencias isoladas **nao substitui** smoke test de video na janela SDL/X11.
+
+### Procedimento de reteste
+
+```bash
+cd ~/raspberry-tv-player
+git fetch origin refs/heads/feature/native-iptv-playback-v04
+git merge --ff-only FETCH_HEAD
+cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release
+cmake --build build/native -j2
+ctest --test-dir build/native --output-on-failure
+DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen --playlist /tmp/raspberry-tv-teste.m3u
+```
+
+Aperte × para entrar em TV AO VIVO e × novamente para abrir o arquivo MP4. Verifique se o video e exibido; ○ para voltar. `Ctrl+C` apenas depois de concluir o teste para validar a limpeza. Nao alterar LightDM, xrandr, fonte, Bluetooth ou outros servicos.
