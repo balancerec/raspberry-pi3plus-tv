@@ -16,4 +16,6 @@ int main() {
     while(loader.busy())std::this_thread::sleep_for(std::chrono::milliseconds(1));
     r=loader.take();check(r && !bool(*r),"background errors returned");
     std::filesystem::remove(path);
+    {std::ofstream sparse(path,std::ios::binary);sparse.seekp(64*1024*1024);sparse.put('x');}
+    check(!readPlaylistFile(path.u8string()),"oversized file rejected before read");std::filesystem::remove(path);
 }

@@ -152,7 +152,8 @@ int main(int argc, char** argv) {
     raspberry_tv::PlaylistLoader loader;
     if(!playlist.empty()){loader.start(playlist);model.setStatusMessage("Carregando playlist local...");}
     raspberry_tv::TvPlayer player;
-    if(!player.initialize(window,settings))model.setStatusMessage("Player requer X11 e plugins GStreamer; menus disponiveis");
+    const bool playerReady=player.initialize(window,settings);
+    if(!playerReady)model.setStatusMessage("Player requer X11 e plugins GStreamer; menus disponiveis");
     if(!osdAvailable)std::fputs("OSD indisponivel; informacoes retornam ao menu apos O\n",stderr);
     ControllerInput input,keyboard;openFirstController();
     bool running=true,dirty=true,savePending=false,playbackHelp=false,loadPending=!playlist.empty();
@@ -238,7 +239,7 @@ int main(int argc, char** argv) {
             previousSnapshot=snap;
         }
         if(savePending && static_cast<std::uint32_t>(SDL_GetTicks()-lastAction)>=500) {
-            model.captureState(state);settings.volume=snap.volume;settings.muted=snap.muted;writer.submit(state);savePending=false;
+            model.captureState(state);if(playerReady){settings.volume=snap.volume;settings.muted=snap.muted;}writer.submit(state);savePending=false;
         }
         if(auto saveError=writer.takeError();!saveError.empty()){model.setStatusMessage(saveError);dirty=true;}
         const auto minute=std::time(nullptr)/60;if(minute!=shownMinute){shownMinute=minute;dirty=true;}
@@ -251,6 +252,6 @@ int main(int argc, char** argv) {
         } else if(!showOsd)ui.drawOsd(window,nullptr,snap,false,false);
     }
     // Join the GStreamer owner before destroying any X11 drawable.
-    const auto snap=player.snapshot();model.captureState(state);settings.volume=snap.volume;settings.muted=snap.muted;writer.submit(state);
+    const auto snap=player.snapshot();model.captureState(state);if(playerReady){settings.volume=snap.volume;settings.muted=snap.muted;}writer.submit(state);
     player.shutdown();closeController(input);ui.close();SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
 }

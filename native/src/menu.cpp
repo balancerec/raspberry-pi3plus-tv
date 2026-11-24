@@ -33,6 +33,7 @@ void TvModel::restoreState(const UserState& state) {
 }
 void TvModel::captureState(UserState& state) const {
     state.favorites=favorites_;state.settings.playlist=playlistPath_.empty()?state.settings.playlist:playlistPath_;
+    if(channels_.empty())return; // failed initial import must not erase remembered selection
     state.settings.lastGroup=activeGroup();state.settings.lastChannel=rememberedChannel_;
     if(const auto* ch=selectedChannel())state.settings.lastChannel=channelIdentity(*ch);
 }

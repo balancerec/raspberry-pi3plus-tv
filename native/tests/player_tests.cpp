@@ -1,5 +1,6 @@
 #include "tv/player.hpp"
 #include "test.hpp"
+#include "http_fixture.hpp"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -25,6 +26,11 @@ int main() {
     p.togglePause();check(waitFor([&]{return p.snapshot().state==PlaybackState::Playing;}),"actual resume");
     p.stop();check(waitFor([&]{return p.snapshot().state==PlaybackState::Idle;}),"actual playing-to-idle teardown");
     std::filesystem::remove(file);
+    for(int code:{403,404}) {
+        HttpErrorFixture server(code);check(p.play(server.uri),"local HTTP error request");
+        check(waitFor([&]{return p.snapshot().state==PlaybackState::Failed;}),"HTTP access failure stops");
+        check(p.snapshot().status.find("Acesso negado")!=std::string::npos,"403/404 summarized without retry or provider message");
+    }
     for(int i=0;i<8;++i) {
         check(p.play("file:///nonexistent-raspberry-tv-test.wav"),"async missing-file request accepted");
         check(waitFor([&]{return p.snapshot().state==PlaybackState::Failed;}),"actual open failure returns control");
@@ -36,4 +42,6 @@ int main() {
     p.stop();check(waitFor([&]{return p.snapshot().state==PlaybackState::Idle;}),"rapid zapping is coalesced and cancellable");
     p.changeVolume(-0.2);p.toggleMute();check(p.snapshot().volume>0.44 && p.snapshot().volume<0.46 && p.snapshot().muted,"audio state exposed (not proof of audible audio)");
     p.shutdown();p.shutdown();check(p.snapshot().state==PlaybackState::Shutdown,"idempotent shutdown");
+    check(p.initializeHeadless(),"safe reinitialize after shutdown");p.stop();
+    check(waitFor([&]{return p.snapshot().state==PlaybackState::Idle;}),"reinitialized worker responds");p.shutdown();
 }

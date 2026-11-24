@@ -1,4 +1,5 @@
 #include "tv/state_writer.hpp"
+#include <cstdio>
 namespace raspberry_tv {
 StateWriter::~StateWriter() {
     {std::lock_guard<std::mutex> lock(mutex_);stopping_=true;wake_.notify_one();}
@@ -13,7 +14,7 @@ void StateWriter::run() {
         next=std::move(pending_);pending_.reset();if(!next && stopping_)return;}
         std::string error;
         try {saveUserState(path_,*next,error);}catch(...){error="Falha ao salvar configuracao";}
-        if(!error.empty()){std::lock_guard<std::mutex> lock(mutex_);error_=error;}
+        if(!error.empty()){std::fprintf(stderr,"Persistencia: %s\n",error.c_str());std::lock_guard<std::mutex> lock(mutex_);error_=error;}
     }
 }
 }

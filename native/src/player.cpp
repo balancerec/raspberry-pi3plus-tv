@@ -17,12 +17,12 @@ bool TvPlayer::initialize(SDL_Window* window,const UserSettings& settings) {
     windowHandle_=static_cast<guintptr>(info.info.x11.window);
     if(!windowHandle_ || !validAudioSink(settings.audioSink))return false;
     settings_=settings;snapshot_.volume=settings.volume;snapshot_.muted=settings.muted;
-    exit_=false;headless_=false;pending_=Command::None;machine_.stopped();snapshot_.state=PlaybackState::Idle;
+    exit_=false;headless_=false;desiredPause_=false;audioDirty_=false;pending_=Command::None;machine_.stopped();snapshot_.state=PlaybackState::Idle;
     ready_=true;worker_=std::thread(&TvPlayer::run,this);return true;
 }
 bool TvPlayer::initializeHeadless() {
     if(ready_)return false;
-    headless_=true;exit_=false;pending_=Command::None;machine_.stopped();snapshot_.state=PlaybackState::Idle;
+    headless_=true;exit_=false;desiredPause_=false;audioDirty_=false;pending_=Command::None;machine_.stopped();snapshot_.state=PlaybackState::Idle;
     ready_=true;worker_=std::thread(&TvPlayer::run,this);return true;
 }
 PlayerSnapshot TvPlayer::snapshot() const {std::lock_guard<std::mutex> lock(mutex_);return snapshot_;}
@@ -150,6 +150,13 @@ void TvPlayer::inspectBus() {
                     if(e->domain==GST_STREAM_ERROR)failure=e->code==GST_STREAM_ERROR_CODEC_NOT_FOUND || e->code==GST_STREAM_ERROR_WRONG_TYPE || e->code==GST_STREAM_ERROR_TYPE_NOT_FOUND?PlaybackFailure::Codec:PlaybackFailure::Decode;
                     else if(e->domain==GST_CORE_ERROR)failure=e->code==GST_CORE_ERROR_MISSING_PLUGIN?PlaybackFailure::Codec:PlaybackFailure::Internal;
                     else if(e->domain==GST_RESOURCE_ERROR && (e->code==GST_RESOURCE_ERROR_NOT_FOUND || e->code==GST_RESOURCE_ERROR_NOT_AUTHORIZED))failure=PlaybackFailure::Access;
+                    if(e->domain==GST_RESOURCE_ERROR && e->message) {
+                        // Some HTTP plugins report OPEN_READ for these statuses. Inspect,
+                        // but never print/store the raw provider message or debug details.
+                        const std::string detail=e->message;
+                        if(detail.find("(403)")!=std::string::npos || detail.find("(404)")!=std::string::npos ||
+                           detail.find("Forbidden")!=std::string::npos || detail.find("Not Found")!=std::string::npos)failure=PlaybackFailure::Access;
+                    }
                     // Identify errors from the configured sink, without logging plugin messages/URLs.
                     GstElement* sink=nullptr;g_object_get(playbin_,"audio-sink",&sink,nullptr);
                     if(sink) {if(GST_MESSAGE_SRC(msg)==GST_OBJECT(sink) || gst_object_has_as_ancestor(GST_MESSAGE_SRC(msg),GST_OBJECT(sink)))failure=PlaybackFailure::Audio;gst_object_unref(sink);}

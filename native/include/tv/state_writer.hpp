@@ -4,6 +4,7 @@
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <utility>
 namespace raspberry_tv {
 // SD-card fsync never runs in the SDL loop; final destructor flushes the last state.
 class StateWriter {

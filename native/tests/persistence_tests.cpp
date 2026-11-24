@@ -20,8 +20,11 @@ int main() {
     std::ifstream saved(dir/"state.conf");std::string raw((std::istreambuf_iterator<char>(saved)),{});saved.close();
     check(raw.find("SECRET")==std::string::npos && raw.find("https://")==std::string::npos,"channel addresses never persisted");
     std::istringstream list("#EXTM3U\n#EXTINF:-1 tvg-id=\"a\" tvg-name=\"A\" group-title=\"News\",Canal A\nhttps://example.invalid/a?token=NEW\n#EXTINF:-1,B\nhttps://example.invalid/b\n");
-    TvModel model;model.restoreState(loaded);check(model.applyPlaylist(readM3u(list),"test.m3u"),"apply after restoring state");
+    TvModel model;model.restoreState(loaded);model.captureState(loaded);
+    check(loaded.settings.lastGroup=="News","absent catalog does not erase remembered group");
+    check(model.applyPlaylist(readM3u(list),"test.m3u"),"apply after restoring state");
     model.dispatch(Action::Confirm);check(model.hasFavorite(0) && model.favoriteCount()==1,"favorite remapped across token change");
+    check(model.activeGroup()=="News" && model.selectedChannel()->tvgId=="a","last group and channel restored without autoplay");
     model.dispatch(Action::Home);model.dispatch(Action::Favorites);check(model.selectedChannel() && model.selectedChannel()->tvgId=="a","favorite view restored");
     std::istringstream reorder("#EXTM3U\n#EXTINF:-1,B\nhttps://example.invalid/b\n#EXTINF:-1 tvg-id=\"a\" tvg-name=\"A\" group-title=\"News\",Canal A\nhttps://example.invalid/a?token=LATEST\n");
     check(model.applyPlaylist(readM3u(reorder),"test.m3u") && model.hasFavorite(1),"favorites survive reorder/reload");
@@ -35,6 +38,7 @@ int main() {
     UserState invalid=state;invalid.settings.playlist="https://provider.invalid/?token=SECRET";
     check(!saveUserState(dir,invalid,error),"remote secret not saved as playlist path");
     check(loadUserState(dir,loaded,error) && loaded.settings.volume==0.9,"failed save retains last valid state");
+    check(!saveUserState(dir/"state.conf"/"invalid-child",state,error),"I/O failure is reported without destroying existing file");
     {StateWriter writer(dir);for(int i=0;i<20;++i){state.settings.volume=i/20.0;writer.submit(state);}}
     check(loadUserState(dir,loaded,error) && loaded.settings.volume==0.95,"async writer flushes last request at shutdown");
     std::filesystem::remove_all(dir);
