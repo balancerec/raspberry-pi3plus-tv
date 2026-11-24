@@ -36,6 +36,28 @@ ctest --test-dir build/native --output-on-failure
 
 Esperado: **5 testes**, incluindo `iptv_group_and_channel_navigation` e `gstreamer_object_lifecycle`. Se houver falha, nao inicie a UI ate examinarmos o erro; 5/5 e apenas criterio previsto, nao resultado confirmado.
 
+## Smoke test sem IPTV externo (duas categorias)
+
+Reutilize os MP4 locais gerados no prototipo v0.4 para exercitar controles e filtro de grupos, antes de testar rede:
+
+```bash
+cat > /tmp/raspberry-tv-v05-test.m3u <<'M3U'
+#EXTM3U
+#EXTINF:-1 group-title="Curtos",Video local curto
+file:///tmp/raspberry-tv-teste.mp4
+#EXTINF:-1 group-title="Longos",Video local longo
+file:///tmp/raspberry-tv-teste-longo.mp4
+#EXTINF:-1 group-title="Longos",Outro video curto
+file:///tmp/raspberry-tv-teste.mp4
+M3U
+./build/native/raspberry-tv-native --check-playlist /tmp/raspberry-tv-v05-test.m3u
+DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen --playlist /tmp/raspberry-tv-v05-test.m3u
+```
+
+Esperado para `--check-playlist`: 3 canais e 2 grupos. Na TV, abra TV AO VIVO, escolha grupo "Longos" com L1/R1, abra video, pressione R2 para trocar para outro canal dentro do grupo, cima/baixo para volume, quadrado para mute e circulo para sair. Se os MP4 de `/tmp` nao existirem, gere novamente conforme `docs/PLAYER_IPTV_V04.md`.
+
+**Este smoke test nao tem trilha de audio**, logo nao valida som mesmo que volume/mute mudem de estado.
+
 ## Carregar playlist real
 
 A lista deve existir fisicamente no Raspberry Pi. Para uma playlist ja copiada:
