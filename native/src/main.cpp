@@ -6,6 +6,7 @@
 #include <SDL.h>
 
 #include <cstdio>
+#include <csignal>
 #include <cstring>
 #include <ctime>
 #include <string>
@@ -16,6 +17,9 @@ using raspberry_tv::Button;
 using raspberry_tv::ControllerInput;
 
 namespace {
+// SIGINT handler must not touch SDL, GStreamer or allocation APIs.
+volatile std::sig_atomic_t interrupted = 0;
+void onInterrupt(int) { interrupted = 1; }
 SDL_GameController* controller = nullptr;
 SDL_JoystickID instanceId = -1;
 
@@ -85,6 +89,8 @@ bool keyFromSDL(SDL_Keycode id, Button& result) {
 } // namespace
 
 int main(int argc, char** argv) {
+    std::signal(SIGINT, onInterrupt);
+    std::signal(SIGTERM, onInterrupt);
     bool fullscreen = false;
     std::string playlist;
     for (int i=1;i<argc;++i) {
@@ -141,7 +147,7 @@ int main(int argc, char** argv) {
     bool running = true;
     bool dirty = true;
     std::time_t shownMinute = std::time(nullptr) / 60;
-    while (running) {
+    while (running && !interrupted) {
         SDL_Event event;
         const bool hasEvent = SDL_WaitEventTimeout(&event, 20) != 0;
         if (hasEvent) {
@@ -206,7 +212,10 @@ int main(int argc, char** argv) {
                 model.selectedChannel()) {
                 if (!player.play(model.selectedChannel()->url)) {
                     model.setStatusMessage(player.status());
+                    std::fprintf(stderr,"Player: falha de abertura (URL omitida)\n");
                     dirty = true;
+                } else {
+                    std::puts("Player: abertura solicitada ao GStreamer (URL omitida)");
                 }
                 continue;
             }
@@ -224,7 +233,8 @@ int main(int argc, char** argv) {
             dirty = false;
         }
     }
-    player.stop();
+    // Release the overlay before destroying SDL's X11 drawable.
+    player.shutdown();
     closeController(input);
     ui.close();
     SDL_DestroyRenderer(renderer);
