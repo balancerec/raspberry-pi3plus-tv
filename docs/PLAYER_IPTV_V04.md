@@ -74,7 +74,8 @@ Se o video ficar lento, pressionar ○ e retornar ao menu. Um video de 5 segundo
 - [x] Mapeamento de comandos de playback no shell SDL.
 - [x] Build C++ GStreamer no Raspberry (confirmado pelo usuario: 100% Built target raspberry-tv-native).
 - [x] CTest 3/3 (controller_input, menu_navigation_and_m3u, fullhd_native_pixels), 0 falhas em 0,07s, confirmado no Raspberry.
-- [ ] Teste funcional com arquivo local, abertura do canal e retorno pelo ○ (nao executado ainda).
+- [x] Teste funcional parcial com arquivo local: abertura do canal e transicoes PLAYING→EOS confirmadas pelo console.
+- [ ] Testar interrupcao pelo ○ antes de EOS e retorno efetivo a lista.
 - [ ] Confirmar X11 `GstVideoOverlay` sobre a janela SDL com o driver real.
 - [ ] Testar fontes de canais M3U com permissao de uso, protocolos e audio.
 - [ ] Validar troca de canais e buffering real.
@@ -125,3 +126,38 @@ DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen --playlist /tmp/raspb
 ```
 
 Aperte × para entrar em TV AO VIVO e × novamente para abrir o arquivo MP4. Verifique se o video e exibido; ○ para voltar. `Ctrl+C` apenas depois de concluir o teste para validar a limpeza. Nao alterar LightDM, xrandr, fonte, Bluetooth ou outros servicos.
+
+
+## Reteste do player apos correcao de referencias — 2026-11-23
+
+O usuario executou:
+
+```bash
+DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen \
+  --playlist /tmp/raspberry-tv-teste.m3u
+```
+
+Mensagens registradas:
+
+```text
+Renderizador: opengl
+Renderizacao interna: 1920 x 1080; saida atual: 1920 x 1080
+Playlist carregada: 1 canais
+Controle principal: PS4 Controller (0)
+Acao: confirm
+Acao: confirm
+Player: abertura solicitada ao GStreamer (URL omitida)
+GStreamer: transicao para PLAYING confirmada
+GStreamer: fim de fluxo recebido (EOS)
+^C
+```
+
+- [x] Canal local selecionado por dois comandos `confirm` do DualShock 4.
+- [x] GStreamer confirmou transicao `PLAYING` e depois `EOS` normal.
+- [x] Encerramento com Ctrl+C sem repetir as mensagens `GStreamer-CRITICAL` observadas anteriormente.
+- [ ] Confirmacao visual do usuario sobre exibicao de video na TV (o console nao comprova que os quadros foram exibidos).
+- [ ] Verificar ○ para parar antes do fim, com arquivo local de duracao maior sem recodificacao.
+- [ ] Confirmar resposta do menu depois de EOS e navegacao subsequente.
+- [ ] Medir FPS e audio em canais reais, mantendo registro da fonte sob subtensao.
+
+A correção de controle de ciclo de vida passou no reteste funcional de PLAYING→EOS→Ctrl+C; isso nao significa que todos os caminhos de erro e troca de canal tenham sido exercitados. `CTest 4/4` ainda nao foi relatado nesta rodada, portanto permanece pendente de confirmacao explicita.
