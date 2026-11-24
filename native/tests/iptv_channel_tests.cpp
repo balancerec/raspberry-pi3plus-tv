@@ -16,6 +16,16 @@ static void verify(bool ok, const char* label) {
 }
 
 int main() {
+    {
+        std::istringstream commas(
+            "#EXTM3U\n"
+            "#EXTINF:-1 group-title=\"Noticias, Brasil\" tvg-name=\"Nome, Completo\",Canal, Brasil\n"
+            "https://example.invalid/noticias.m3u8\n");
+        const auto parsed = parseM3u(commas);
+        verify(parsed.size() == 1, "quoted-comma channel count");
+        verify(parsed[0].name == "Canal, Brasil", "EXTINF separator ignores metadata commas");
+        verify(parsed[0].group == "Noticias, Brasil", "group-title comma preserved");
+    }
     const std::string playlistFile = "iptv-v05-test-list.m3u";
     {
         std::ofstream file(playlistFile, std::ios::binary);
