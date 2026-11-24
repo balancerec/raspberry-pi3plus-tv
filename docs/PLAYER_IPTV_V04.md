@@ -188,3 +188,16 @@ GStreamer: fim de fluxo recebido (EOS)
 - [ ] Confirmar duracao efetiva do MP4 com `ffprobe`, pois o log nao inclui tempos.
 
 Proximo teste: rodar `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 /tmp/raspberry-tv-teste-longo.mp4`; iniciar UI, apertar ○ poucos segundos apos X e verificar `Acao: back` e menu responsivo. Sem novos benchmarks 1080p sob subtensao, sem alterar fonte nem servicos do DietPi.
+
+
+## Reteste de interrupcao pelo controle — 2026-11-23
+
+O usuario executou o aplicativo em `1920x1080`, com um canal local e controle `PS4 Controller (0)`. O log registrou `down`, `up`, `down`, `up`, dois `confirm`, abertura do GStreamer, transicao `PLAYING` e, durante a reproducao, `Acao: back`. Encerramento posterior com Ctrl+C. Nenhuma mensagem GStreamer-CRITICAL apareceu.
+
+- [x] Botao circulo gerou o comando `back` enquanto o player estava ativo.
+- [x] O caminho C++ no codigo chama `player.stop()`, atualiza mensagem e marca redraw do menu ao receber `back` durante reproducao.
+- [ ] Usuario ainda nao confirmou visualmente se a lista de canais reapareceu e permaneceu navegavel.
+- [ ] Usuario ainda nao confirmou visualmente se os quadros do video apareceram na televisao.
+- [ ] Continuar teste de audio, troca real de canais e fluidez sem ignorar a subtensao ativa.
+
+Observacao: neste reteste nao houve `EOS` no log porque houve interrupcao antecipada, diferente do teste anterior.
