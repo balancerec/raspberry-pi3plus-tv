@@ -3,6 +3,7 @@
 #include <SDL_syswm.h>
 #include <gst/video/videooverlay.h>
 #include <cstdio>
+#include <algorithm>
 
 namespace raspberry_tv {
 
@@ -85,7 +86,8 @@ bool TvPlayer::createPipeline() {
     // Share the existing SDL X11 window, no new kiosk/service or root needed.
     gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(sink), windowHandle_);
     gst_video_overlay_handle_events(GST_VIDEO_OVERLAY(sink), FALSE);
-    g_object_set(G_OBJECT(playbin_), "video-sink", sink, nullptr);
+    g_object_set(G_OBJECT(playbin_), "video-sink", sink,
+                 "volume", volume_, "mute", muted_ ? TRUE : FALSE, nullptr);
     // playbin keeps its own reference. This releases only our explicit ref.
     gst_object_unref(sink);
 
@@ -157,6 +159,22 @@ void TvPlayer::stop() {
     desiredPlaying_ = true;
     live_ = false;
     status_ = "Reproducao encerrada";
+}
+
+void TvPlayer::changeVolume(double delta) {
+    volume_ = std::max(0.0, std::min(1.0, volume_ + delta));
+    if (playbin_) g_object_set(G_OBJECT(playbin_), "volume", volume_, nullptr);
+    char buffer[64];
+    std::snprintf(buffer, sizeof(buffer), "Volume %d%%", static_cast<int>(volume_ * 100.0 + 0.5));
+    status_ = buffer;
+    std::printf("Audio: volume=%d%%\n", static_cast<int>(volume_ * 100.0 + 0.5));
+}
+
+void TvPlayer::toggleMute() {
+    muted_ = !muted_;
+    if (playbin_) g_object_set(G_OBJECT(playbin_), "mute", muted_ ? TRUE : FALSE, nullptr);
+    status_ = muted_ ? "Audio silenciado" : "Audio ativado";
+    std::puts(muted_ ? "Audio: mute on" : "Audio: mute off");
 }
 
 void TvPlayer::togglePause() {
