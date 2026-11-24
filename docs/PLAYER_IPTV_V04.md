@@ -72,8 +72,9 @@ Se o video ficar lento, pressionar ○ e retornar ao menu. Um video de 5 segundo
 
 - [x] Branch e modulo GStreamer de player estruturados.
 - [x] Mapeamento de comandos de playback no shell SDL.
-- [ ] Build C++ GStreamer no Raspberry (nao executado remotamente).
-- [ ] CTest 3/3 e teste com arquivo local, abertura do canal e retorno pelo ○.
+- [x] Build C++ GStreamer no Raspberry (confirmado pelo usuario: 100% Built target raspberry-tv-native).
+- [x] CTest 3/3 (controller_input, menu_navigation_and_m3u, fullhd_native_pixels), 0 falhas em 0,07s, confirmado no Raspberry.
+- [ ] Teste funcional com arquivo local, abertura do canal e retorno pelo ○ (nao executado ainda).
 - [ ] Confirmar X11 `GstVideoOverlay` sobre a janela SDL com o driver real.
 - [ ] Testar fontes de canais M3U com permissao de uso, protocolos e audio.
 - [ ] Validar troca de canais e buffering real.
@@ -85,3 +86,7 @@ Se o video ficar lento, pressionar ○ e retornar ao menu. Um video de 5 segundo
 - GstVideoOverlay: https://gstreamer.freedesktop.org/documentation/video/gstvideooverlay.html
 - playbin: https://gstreamer.freedesktop.org/documentation/playback/playbin.html
 - glimagesink: https://gstreamer.freedesktop.org/documentation/opengl/glimagesink.html
+
+## Validacao de compilacao em hardware — 2026-11-23
+
+Usuario executou `cmake -S native -B build/native -DCMAKE_BUILD_TYPE=Release`, `cmake --build build/native -j2` e `ctest --test-dir build/native --output-on-failure` em `~/raspberry-tv-player`. O executavel nativo foi construido, 3/3 testes aprovados (`controller_input`, `menu_navigation_and_m3u`, `fullhd_native_pixels`), tempo CTest 0,07 s. As bibliotecas `libgstreamer1.0-dev 1.26.2-2` e `libgstreamer-plugins-base1.0-dev 1.26.2-1+rpt3+deb13u2` estavam previamente instaladas. Esta validacao **nao testa o pipeline de exibicao real**, integrado por GstVideoOverlay/X11, nem o retorno do video ao menu. O primeiro smoke test deve usar arquivo pequeno de 640x360 e M3U `file:///tmp/...`, evitando forcar fluxo Full HD durante a subtensao.
