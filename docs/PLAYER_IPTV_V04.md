@@ -155,9 +155,9 @@ GStreamer: fim de fluxo recebido (EOS)
 - [x] Canal local selecionado por dois comandos `confirm` do DualShock 4.
 - [x] GStreamer confirmou transicao `PLAYING` e depois `EOS` normal.
 - [x] Encerramento com Ctrl+C sem repetir as mensagens `GStreamer-CRITICAL` observadas anteriormente.
-- [ ] Confirmacao visual do usuario sobre exibicao de video na TV (o console nao comprova que os quadros foram exibidos).
-- [ ] Verificar ○ para parar antes do fim, com arquivo local de duracao maior sem recodificacao.
-- [ ] Confirmar resposta do menu depois de EOS e navegacao subsequente.
+- [x] Confirmacao visual do usuario sobre exibicao do video na TV, coletada em 2026-11-23.
+- [x] Pressionar ○ durante video local longo gerou `Acao: back` e o usuario confirmou retorno visual ao menu.
+- [ ] Confirmar navegacao do menu depois de EOS (o retorno visual apos botao ○ ja foi confirmado).
 - [ ] Medir FPS e audio em canais reais, mantendo registro da fonte sob subtensao.
 
 A correção de controle de ciclo de vida passou no reteste funcional de PLAYING→EOS→Ctrl+C; isso nao significa que todos os caminhos de erro e troca de canal tenham sido exercitados. `CTest 4/4` ainda nao foi relatado nesta rodada, portanto permanece pendente de confirmacao explicita.
@@ -182,7 +182,7 @@ GStreamer: fim de fluxo recebido (EOS)
 
 - [x] Arquivo de teste longo carregado via M3U, reproduzido pelo pipeline ate `EOS` sem erro critico de GStreamer.
 - [x] Dois `confirm` do DualShock identificados.
-- [ ] Confirmar visualmente imagem na TV: `PLAYING`/`EOS` nao provam apresentacao real de quadros.
+- [x] Usuario confirmou visualmente que o video foi exibido na TV durante a reproducao (2026-11-23).
 - [ ] Confirmar interrupt manual com ○: **o log nao mostra `Acao: back`** antes de `EOS`, logo ainda nao houve prova dessa funcao.
 - [ ] Esclarecer segunda identificacao do controle `PS4 Controller (0)` e `PS4 Controller (1)`. IDs distintos sugerem recriacao/reconexao do dispositivo, mas so os logs nao provam falha Bluetooth ou causa de alimentacao.
 - [ ] Confirmar duracao efetiva do MP4 com `ffprobe`, pois o log nao inclui tempos.
@@ -196,8 +196,19 @@ O usuario executou o aplicativo em `1920x1080`, com um canal local e controle `P
 
 - [x] Botao circulo gerou o comando `back` enquanto o player estava ativo.
 - [x] O caminho C++ no codigo chama `player.stop()`, atualiza mensagem e marca redraw do menu ao receber `back` durante reproducao.
-- [ ] Usuario ainda nao confirmou visualmente se a lista de canais reapareceu e permaneceu navegavel.
-- [ ] Usuario ainda nao confirmou visualmente se os quadros do video apareceram na televisao.
+- [x] Usuario confirmou visualmente que o menu reapareceu apos pressionar ○; a navegacao apos retorno ainda nao foi testada explicitamente.
+- [x] Usuario confirmou video visivel na televisao durante a reproducao.
 - [ ] Continuar teste de audio, troca real de canais e fluidez sem ignorar a subtensao ativa.
 
 Observacao: neste reteste nao houve `EOS` no log porque houve interrupcao antecipada, diferente do teste anterior.
+
+## Aceite funcional visual da v0.4 — 2026-11-23
+
+O usuario confirmou explicitamente dois itens apos executar `DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen --playlist /tmp/raspberry-tv-teste-longo.m3u` e acionar o DualShock 4:
+
+- [x] **Video visivel na televisao** durante a reproducao do canal de teste local.
+- [x] **Menu reaparece visualmente** apos pressionar o botao ○ (`Acao: back`).
+
+Com os logs anteriores, isto valida o ciclo funcional basico de selecao de canal M3U → `PLAYING` → video visivel → interrupcao pelo botao ○ → menu restaurado. O console da rodada nao apresentou GStreamer-CRITICAL e a saida SDL continua 1920x1080.
+
+**Nao confundir com validacao de IPTV real ou de fluidez 1080p30:** o video fonte do smoke test era de baixa resolucao; video 1080p GL teve perdas importantes de quadros sob alimentacao insuficiente (`throttled=0x50005`). Audio, estabilidade em canais ao vivo, reconexao e navegacao apos retorno permanecem a verificar. A fonte atual sera mantida por decisao do usuario, respeitando protecoes de hardware.
