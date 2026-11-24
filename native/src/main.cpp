@@ -2,6 +2,7 @@
 #include "tv/menu.hpp"
 #include "tv/ui.hpp"
 #include "tv/display.hpp"
+#include "tv/player.hpp"
 #include <SDL.h>
 
 #include <cstdio>
@@ -96,7 +97,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     const Uint32 flags = SDL_WINDOW_SHOWN | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE);
-    SDL_Window* window = SDL_CreateWindow("Raspberry TV - Native Full HD v0.3", SDL_WINDOWPOS_CENTERED,
+    SDL_Window* window = SDL_CreateWindow("Raspberry TV - Native IPTV v0.4", SDL_WINDOWPOS_CENTERED,
                                            SDL_WINDOWPOS_CENTERED, raspberry_tv::display::NativeWidth, raspberry_tv::display::NativeHeight, flags);
     if (!window) { std::fprintf(stderr, "SDL_CreateWindow: %s\n", SDL_GetError()); SDL_Quit(); return 1; }
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
@@ -129,6 +130,11 @@ int main(int argc, char** argv) {
     if (!playlist.empty()) {
         if (!model.loadPlaylist(playlist)) std::fprintf(stderr,"Nao foi possivel carregar a playlist.\n");
         else std::printf("Playlist carregada: %zu canais\n",model.channels().size());
+    }
+    raspberry_tv::TvPlayer player;
+    if (!player.initialize(window)) {
+        model.setStatusMessage("Player X11 indisponivel; menus permanecem ativos");
+        std::fprintf(stderr,"AVISO: player IPTV indisponivel nesta sessao.\n");
     }
     ControllerInput input;
     openFirstController();
@@ -166,13 +172,59 @@ int main(int argc, char** argv) {
         }
         for (const Action action : input.poll(SDL_GetTicks())) {
             std::printf("Acao: %s\n", raspberry_tv::actionName(action));
+            if (player.active()) {
+                // The SDL event loop remains active while GStreamer owns the
+                // X11 video area. Never redraw SDL over a playing frame.
+                if (action == Action::Back) {
+                    player.stop();
+                    model.setStatusMessage("Reproducao encerrada");
+                    dirty = true;
+                } else if (action == Action::Home) {
+                    player.stop();
+                    model.dispatch(Action::Home);
+                    dirty = true;
+                } else if (action == Action::Confirm || action == Action::Menu) {
+                    player.togglePause();
+                } else if (action == Action::NextChannel ||
+                           action == Action::PreviousChannel) {
+                    model.dispatch(action);
+                    if (const auto* channel = model.selectedChannel()) {
+                        if (!player.play(channel->url)) {
+                            model.setStatusMessage(player.status());
+                            dirty = true;
+                        }
+                    }
+                } else if (action == Action::Favorites) {
+                    model.dispatch(action);
+                }
+                continue;
+            }
+            const bool browsing = model.view()==raspberry_tv::View::Channels ||
+                                  model.view()==raspberry_tv::View::Favorites;
+            if (action == Action::Confirm && browsing &&
+                !model.showHelp() && !model.showDetails() &&
+                model.selectedChannel()) {
+                if (!player.play(model.selectedChannel()->url)) {
+                    model.setStatusMessage(player.status());
+                    dirty = true;
+                }
+                continue;
+            }
             model.dispatch(action);
+            dirty = true;
+        }
+        if (player.poll() && !player.active()) {
+            model.setStatusMessage(player.status());
             dirty = true;
         }
         const auto minute=std::time(nullptr)/60;
         if(minute!=shownMinute) {shownMinute=minute;dirty=true;}
-        if (dirty) { ui.draw(renderer, model, controller != nullptr); dirty = false; }
+        if (dirty && !player.active()) {
+            ui.draw(renderer, model, controller != nullptr);
+            dirty = false;
+        }
     }
+    player.stop();
     closeController(input);
     ui.close();
     SDL_DestroyRenderer(renderer);

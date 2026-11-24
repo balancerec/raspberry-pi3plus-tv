@@ -20,6 +20,7 @@ public:
     bool showDetails() const { return details_; }
     bool hasFavorite(std::size_t index) const { return favorites_.count(index) != 0; }
     const std::string& message() const { return message_; }
+    void setStatusMessage(const std::string& value) { message_ = value; }
     const std::string& playlistPath() const { return playlistPath_; }
     const std::vector<Channel>& channels() const { return channels_; }
     std::size_t visibleCount() const;
