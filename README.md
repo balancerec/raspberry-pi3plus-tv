@@ -7,7 +7,10 @@ ARM64, XFCE/LightDM/X11 e controle DualShock 4. Interface interna **1920×1080**
 Após o hotfix X11, o usuário compilou a aplicação completa no Raspberry e
 executou **12/12 testes com sucesso (4,46 s)**. O log da UI informa saída e
 renderização 1920×1080 e reconhecimento do PS4. Vídeo visível, áudio audível,
-navegação e reconexão física ainda exigem confirmação.
+navegação e reconexão física ainda exigem confirmação. A playlist real do
+usuário carregou **398 canais, 0 inválidos, 0 duplicados, sem truncamento**.
+Foram relatados canais indisponíveis e travamentos durante o uso. A alimentação
+inadequada é uma hipótese relevante, não uma causa exclusiva comprovada.
 Consulte [o relatório real](docs/TEST_REPORT.md) e [o checklist](docs/RELEASE_CHECKLIST.md).
 
 ## Implementado

@@ -18,7 +18,8 @@ recebe aprovação física por inferência.
 - [x] Recarga de 20 mil canais em worker testada.
 - [x] Testes do servidor legado preservados: 9/9.
 - [x] Documentação criada/sincronizada com implementação e limitações.
-- [x] Nenhum push, merge no main, alteração em serviço ou instalação no Pi realizada.
+- [x] Nenhum merge no main ou alteração automática de serviços/instalação aprovada no Pi realizada.
+- [x] Publicação da branch de finalização autorizada pelo usuário; playlist privada excluída da entrega.
 
 ## Build / integração Linux ainda necessários
 
@@ -37,7 +38,8 @@ recebe aprovação física por inferência.
 - [ ] Abrir UI e confirmar saída/renderização 1920×1080 sem sobreposição de textos.
 - [ ] DualShock navega, confirma, volta, retorna ao início e abre ajuda.
 - [ ] Desconectar/reconectar Bluetooth e repetir ações sem duplicação.
-- [ ] Carregar playlist real privada e navegar por grupos/páginas.
+- [x] Carregar playlist real privada: 398 canais, 0 inválidos, 0 duplicados, sem truncamento; confirmado pelo usuário.
+- [ ] Navegar por grupos/páginas da playlist real e validar todos os comandos físicos.
 - [ ] Abrir canal compatível: vídeo fisicamente visível.
 - [ ] Stream com trilha: áudio audível no dispositivo selecionado.
 - [ ] Volume/mute/restauração audíveis e persistidos após reabrir.
@@ -57,4 +59,5 @@ recebe aprovação física por inferência.
 
 - [ ] Todos os itens obrigatórios acima atendidos e resultados registrados em TEST_REPORT.md.
 - [ ] Limitações de alimentação/desempenho aceitas com medições reais.
+- [ ] Investigar travamentos relatados; subtensão é hipótese, não diagnóstico exclusivo comprovado.
 - [ ] Release 1.0 final aprovada. Até lá, manter o identificador RC1.

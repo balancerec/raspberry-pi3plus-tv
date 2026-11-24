@@ -16,8 +16,10 @@ fornecido pelo usuário. O binário foi gerado no dispositivo, não neste host.
 - Base verificada: 35d85026a3c1a32b6ce2124a2ce2f91b7851d0b1.
 - Importação superficial via conector GitHub devido bloqueio de rede direta;
   SHA de cada blob/árvore e do commit original conferidos. Histórico remoto
-  consultado, nenhuma reescrita/push/merge.
-- Checkout, playlists, serviços e instalação aprovada no Raspberry intocados.
+  consultado. Publicação da branch de finalização autorizada posteriormente
+  pelo usuário, via conector GitHub; sem reescrever a v0.5 nem fazer merge no main.
+- O agente não alterou checkout, playlists ou serviços no Raspberry. O usuário
+  aplicou o hotfix e executou build/testes/launcher em diretório extraído separado.
 - SSH/rede direta indisponíveis; WSL negado. Git Bash falhou ao criar signal
   pipe com Win32 error 5. Não houve tentativa de contornar essas restrições.
 
@@ -57,7 +59,8 @@ de compilação. Isso compila tv_input/tv_menu e os testes, **não** main/ui/pla
 | playback_group_and_favorites_queue | PASS | Origem filtrada, wrap e favoritos removidos |
 
 Persistência POSIX (0600/fsync/rename) foi implementada, mas somente o ramo
-Windows de I/O foi executado aqui. Todos os testes usam falha explícita,
+Windows de I/O foi executado neste host. O mesmo teste de persistência passou
+posteriormente no Pi, conforme log do usuário. Todos os testes usam falha explícita,
 sem depender de assert desabilitado pelo Release.
 
 Componente legado: `python -m unittest discover -s tests -v`: **9/9 PASS**.
@@ -146,6 +149,35 @@ execução solicitando `--audio-sink alsasink --audio-device default` retornou
 FAILED/category=3/retry=0. Isso confirma a falta de uma dependência de áudio
 necessária para essa preferência; não demonstra defeito do HDMI. Instalação
 manual de gstreamer1.0-alsa e verificação audível continuam pendentes.
+
+### Playlist real e comportamento durante uso — confirmação do usuário
+
+O usuário confirmou que sua playlist real carregou e relatou que alguns canais
+não estão mais no ar. A validação offline e o lançamento com ALSA/HDMI por
+nome de placa produziram este trecho, com endereços de streams omitidos:
+
+```text
+Playlist: 398 canais, 0 invalidos, 0 duplicados; truncada=nao
+Renderizacao interna: 1920 x 1080; saida atual: 1920 x 1080
+Controle principal: PS4 Controller (0)
+Player: state=RECONNECTING category=0 retry=1 (endereco omitido)
+Player: state=RECONNECTING category=0 retry=2 (endereco omitido)
+Player: state=FAILED category=0 retry=2 (endereco omitido)
+```
+
+O log confirma catálogo real validado sem perdas pelo limite do parser e uma
+falha categorizada como rede/stream após duas reconexões. Ele não distingue,
+sozinho, canal permanentemente fora do ar de falha temporária de rede/provedor.
+O usuário também relatou travamentos, que atribui possivelmente à fonte atual.
+Com o histórico de subtensão/throttling, essa hipótese é plausível, mas não
+houve medição contemporânea de alimentação/FPS/CPU/memória/temperatura para
+isolar a causa. Codec, rede e caminho de apresentação também continuam como
+variáveis a verificar. Não declarar fluidez diária ou 1080p30 contínuo aprovado.
+
+Não houve confirmação explícita posterior de áudio audível, OSD, reconexão
+Bluetooth ou todos os comandos físicos. O comando escolheu ALSA/HDMI, mas isso
+não prova som na TV nem comprova a instalação do plugin por esse trecho.
+Nenhuma URL, credencial, token ou conteúdo da playlist real foi incluído no Git.
 
 No worktree isolado do Pi, rode diagnóstico, build limpo/CTest completo e
 `JOBS=1 bash scripts/package-arm64.sh`. Faça a matriz física de

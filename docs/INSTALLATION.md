@@ -9,6 +9,22 @@ em `~/raspberry-tv-iptv` deve continuar intacta.
 
 Para aplicar o patch entregue, primeiro copie-o para o Pi. No checkout existente:
 
+A publicação autorizada está na branch remota `feature/native-tv-release-v10`.
+Para obter a versão publicada preservando o diretório extraído e a v0.5,
+use outro worktree a partir do checkout Git original:
+
+```bash
+cd "$HOME/raspberry-tv-iptv"
+git status --short --branch
+git fetch origin feature/native-tv-release-v10
+git worktree add -b feature/native-tv-release-v10 "$HOME/raspberry-tv-release-v10-git" origin/feature/native-tv-release-v10
+```
+
+Se essa branch local já existir, inspecione-a antes de continuar. Não substitua
+o diretório extraído `~/raspberry-tv-release-v10/raspberry-tv-v10`, que contém
+o build realizado pelo usuário. A playlist privada permanece fora do Git.
+Os comandos abaixo são a alternativa histórica de importação pelo patch:
+
 ```bash
 cd "$HOME/raspberry-tv-iptv"
 git status --short --branch
@@ -144,8 +160,13 @@ nenhum foi criado para a RC1.
 
 ## Publicação Git
 
-Nenhum push/merge foi feito. Após importar/revisar os commits no Pi, o comando
-para publicar **apenas se você decidir autorizar a publicação** é:
+O usuário autorizou a publicação de código/documentação na branch
+`feature/native-tv-release-v10`. A publicação usa o conector GitHub porque
+a rede Git direta do agente está bloqueada. Main e v0.5 são preservados;
+nenhuma playlist privada ou configuração de usuário faz parte dos commits.
+
+Para atualizações futuras publicadas pelo próprio usuário a partir de um
+checkout Git dessa branch:
 
 ```bash
 git push -u origin feature/native-tv-release-v10

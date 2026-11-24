@@ -19,7 +19,8 @@
 ### Correções
 
 - Hotfix do primeiro build no Pi: `Command::NoRequest` evita colisão com a
-  macro `None` do X11 incluída por SDL_syswm.h. Rebuild ARM64 ainda necessário.
+  macro `None` do X11 incluída por SDL_syswm.h. Build ARM64 e 12/12 testes
+  aprovados depois da correção, conforme log do usuário.
 
 - Reload não apaga favoritos nem troca por lista inválida.
 - Identidade deixa de depender da posição do canal.
@@ -32,10 +33,20 @@
 
 ### Validação/limitações
 
-Núcleo portável e testes legados executados no Windows. Build completo Linux,
-GStreamer novo, pacote ARM64 e testes físicos pendentes por falta de acesso
-SSH/runtime Linux neste ambiente. Não há medição nova de FPS/memória no Pi.
-Nenhuma alteração no DietPi ou instalação v0.5. Não aprovada como 1.0 final.
+Núcleo portável e testes legados executados no Windows. Build completo ARM64
+e 12/12 testes aprovados no Raspberry pelo usuário (4,46 s); UI reporta
+1920×1080 e reconhece PS4. Playlist privada real validada: 398 canais,
+0 inválidos, 0 duplicados, sem truncamento. A lista permanece fora do Git.
+
+Usuário relata alguns canais fora do ar e travamentos durante o uso. O log
+registra duas reconexões de rede/stream e falha após esgotar esse limite.
+A fonte inadequada/subtensão histórica pode contribuir para o desempenho,
+mas não houve medição contemporânea que prove ser a única causa. Não há
+FPS/memória/temperatura novos ou confirmação final de áudio audível.
+Pacote ARM64, build integral em novo diretório e matriz física permanecem
+pendentes. Nenhuma alteração automática de serviços do DietPi ou instalação
+v0.5. Não aprovada como 1.0 final. Publicação somente na branch de finalização,
+autorizada pelo usuário; sem merge no main.
 
 ## 0.5 — base 35d8502
 
