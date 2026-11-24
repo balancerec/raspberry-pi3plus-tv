@@ -142,12 +142,17 @@ void TvUi::content(SDL_Renderer* r,const TvModel& model) {
                  "CONTROLE PS4 / NAVEGACAO NATIVA";
     if(listing && model.visibleCount())
         sub+="   •   "+std::to_string(model.selectedRow()+1)+" / "+std::to_string(model.visibleCount());
+    if(model.view()==View::Channels) {
+        std::string group=model.activeGroup();
+        if (group.size()>38) group=group.substr(0,35)+"...";
+        sub+="   |   GRUPO: "+group+"  (L1/R1)";
+    }
     text(r,body_,sub,64,214,Mint,1080);
     panel(r,{60,263,1160,358},Panel);
     if(listing) {
         if(!model.visibleCount()) {
             text(r,heading_,model.view()==View::Channels?
-                "NENHUMA PLAYLIST CARREGADA":"SEM FAVORITOS",92,341,White,1000);
+                model.channels().empty() ? "NENHUMA PLAYLIST CARREGADA" : "GRUPO SEM CANAIS" : "SEM FAVORITOS",92,341,White,1000);
             text(r,body_,model.view()==View::Channels?
                 "Inicie com --playlist /caminho/Playlist_VLC.m3u":
                 "Em TV AO VIVO, pressione TRIANGULO para favoritar.",92,393,Muted,980);
@@ -191,10 +196,11 @@ void TvUi::overlay(SDL_Renderer* r,const TvModel& model) {
     panel(r,{212,165,856,385},{18,41,51,255});
     if(model.showHelp()) {
         text(r,heading_,"CONTROLE PS4 - COMANDOS",250,202,Mint,750);
-        text(r,body_,"D-PAD / ANALOGICO     Navegar",250,274,White);
-        text(r,body_,"X Confirmar    O Voltar    PS Inicio",250,326,White);
-        text(r,body_,"L1/R1 Categorias    L2/R2 Canais",250,378,White);
-        text(r,body_,"TRIANGULO Favorito    QUADRADO Detalhes",250,429,White);
+        text(r,body_,"D-PAD Navegar    X Reproduzir    O Voltar",250,264,White,760);
+        text(r,small_,"L1/R1 Filtrar grupos na lista de TV ao vivo",250,320,White,760);
+        text(r,small_,"L2/R2 Trocar canais    TRIANGULO Favoritos",250,356,White,760);
+        text(r,small_,"No video: CIMA/BAIXO Volume  QUADRADO Mudo",250,392,White,760);
+        text(r,small_,"No video: X Pausa    PS Inicio    O Parar",250,429,White,760);
         text(r,small_,"O ou OPTIONS para fechar",252,496,Muted);
     } else {
         const Channel* ch=model.selectedChannel();
@@ -215,7 +221,9 @@ void TvUi::draw(SDL_Renderer* r,const TvModel& model,bool controllerConnected) {
     if(model.view()==View::Home) home(r,model);else content(r,model);
     fill(r,{0,654,1280,66},{6,18,23,245});
     fill(r,{53,654,1176,1},{39,76,80,255});
-    text(r,small_,"X ABRIR   O VOLTAR   PS INICIO   OPTIONS AJUDA",54,673,Muted,820);
+    text(r,small_,model.view()==View::Channels ?
+         "X ABRIR   L1/R1 GRUPOS   L2/R2 CANAIS   O VOLTAR" :
+         "X ABRIR   O VOLTAR   PS INICIO   OPTIONS AJUDA",54,673,Muted,820);
     text(r,small_,model.message(),848,673,Mint,371);
     overlay(r,model);
     SDL_RenderPresent(r);
