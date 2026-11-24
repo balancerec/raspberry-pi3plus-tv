@@ -161,3 +161,30 @@ GStreamer: fim de fluxo recebido (EOS)
 - [ ] Medir FPS e audio em canais reais, mantendo registro da fonte sob subtensao.
 
 A correção de controle de ciclo de vida passou no reteste funcional de PLAYING→EOS→Ctrl+C; isso nao significa que todos os caminhos de erro e troca de canal tenham sido exercitados. `CTest 4/4` ainda nao foi relatado nesta rodada, portanto permanece pendente de confirmacao explicita.
+
+## Reteste com playlist de 30 segundos — 2026-11-23
+
+Com `DISPLAY=:0 ./build/native/raspberry-tv-native --fullscreen --playlist /tmp/raspberry-tv-teste-longo.m3u`, o usuario relatou no terminal:
+
+```text
+Renderizador: opengl
+Renderizacao interna: 1920 x 1080; saida atual: 1920 x 1080
+Playlist carregada: 1 canais
+Controle principal: PS4 Controller (0)
+Controle principal: PS4 Controller (1)
+Acao: confirm
+Acao: confirm
+Player: abertura solicitada ao GStreamer (URL omitida)
+GStreamer: transicao para PLAYING confirmada
+GStreamer: fim de fluxo recebido (EOS)
+^C
+```
+
+- [x] Arquivo de teste longo carregado via M3U, reproduzido pelo pipeline ate `EOS` sem erro critico de GStreamer.
+- [x] Dois `confirm` do DualShock identificados.
+- [ ] Confirmar visualmente imagem na TV: `PLAYING`/`EOS` nao provam apresentacao real de quadros.
+- [ ] Confirmar interrupt manual com ○: **o log nao mostra `Acao: back`** antes de `EOS`, logo ainda nao houve prova dessa funcao.
+- [ ] Esclarecer segunda identificacao do controle `PS4 Controller (0)` e `PS4 Controller (1)`. IDs distintos sugerem recriacao/reconexao do dispositivo, mas so os logs nao provam falha Bluetooth ou causa de alimentacao.
+- [ ] Confirmar duracao efetiva do MP4 com `ffprobe`, pois o log nao inclui tempos.
+
+Proximo teste: rodar `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 /tmp/raspberry-tv-teste-longo.mp4`; iniciar UI, apertar ○ poucos segundos apos X e verificar `Acao: back` e menu responsivo. Sem novos benchmarks 1080p sob subtensao, sem alterar fonte nem servicos do DietPi.
