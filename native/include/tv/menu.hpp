@@ -27,12 +27,18 @@ public:
     std::size_t channelIndexAt(std::size_t visibleRow) const;
     const Channel* selectedChannel() const;
     std::size_t favoriteCount() const { return favorites_.size(); }
+    std::size_t groupCount() const { return groups_.size(); }
+    std::string activeGroup() const;
+    bool stepChannel(int direction); // +/-1, wraps in current visible list
     static const char* viewTitle(View view);
 private:
     View view_ = View::Home;
     std::size_t selectedHome_ = 0;
     std::size_t selectedRow_ = 0;
     std::vector<Channel> channels_;
+    std::vector<std::string> groups_;
+    std::vector<std::size_t> visibleChannels_;
+    std::size_t groupIndex_ = 0; // 0 = all groups, 1..N = groups_[index-1]
     std::set<std::size_t> favorites_;
     std::string playlistPath_;
     std::string message_ = "Controle PS4 pronto";
@@ -41,5 +47,7 @@ private:
     void setView(View next);
     void move(int direction);
     void toggleFavorite();
+    void changeGroup(int direction);
+    void rebuildChannels();
 };
 } // namespace raspberry_tv
