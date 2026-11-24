@@ -17,12 +17,12 @@ bool TvPlayer::initialize(SDL_Window* window,const UserSettings& settings) {
     windowHandle_=static_cast<guintptr>(info.info.x11.window);
     if(!windowHandle_ || !validAudioSink(settings.audioSink))return false;
     settings_=settings;snapshot_.volume=settings.volume;snapshot_.muted=settings.muted;
-    exit_=false;headless_=false;desiredPause_=false;audioDirty_=false;pending_=Command::None;machine_.stopped();snapshot_.state=PlaybackState::Idle;
+    exit_=false;headless_=false;desiredPause_=false;audioDirty_=false;pending_=Command::NoRequest;machine_.stopped();snapshot_.state=PlaybackState::Idle;
     ready_=true;worker_=std::thread(&TvPlayer::run,this);return true;
 }
 bool TvPlayer::initializeHeadless() {
     if(ready_)return false;
-    headless_=true;exit_=false;desiredPause_=false;audioDirty_=false;pending_=Command::None;machine_.stopped();snapshot_.state=PlaybackState::Idle;
+    headless_=true;exit_=false;desiredPause_=false;audioDirty_=false;pending_=Command::NoRequest;machine_.stopped();snapshot_.state=PlaybackState::Idle;
     ready_=true;worker_=std::thread(&TvPlayer::run,this);return true;
 }
 PlayerSnapshot TvPlayer::snapshot() const {std::lock_guard<std::mutex> lock(mutex_);return snapshot_;}
@@ -208,9 +208,9 @@ void TvPlayer::run() {
     while(!exit_) {
         Command command;std::string uri;bool pause,audio;
         {std::unique_lock<std::mutex> lock(mutex_);
-        wake_.wait_for(lock,std::chrono::milliseconds(20),[this]{return pending_!=Command::None || audioDirty_ || desiredPause_!=paused_;});
-        command=pending_;pending_=Command::None;uri=std::move(pendingUri_);pause=desiredPause_;audio=audioDirty_;
-        if(command!=Command::None)currentGeneration_=generation_;}
+        wake_.wait_for(lock,std::chrono::milliseconds(20),[this]{return pending_!=Command::NoRequest || audioDirty_ || desiredPause_!=paused_;});
+        command=pending_;pending_=Command::NoRequest;uri=std::move(pendingUri_);pause=desiredPause_;audio=audioDirty_;
+        if(command!=Command::NoRequest)currentGeneration_=generation_;}
         if(command==Command::Shutdown){releasePipeline();machine_.shutdown();exit_=true;continue;}
         if(command==Command::Play || command==Command::Stop) {
             machine_.stopping();releasePipeline();machine_.stopped();

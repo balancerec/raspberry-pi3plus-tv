@@ -69,8 +69,8 @@ Não é prova do novo player; demonstra preservação do componente preexistente
 | C++ SDL2/GStreamer novo | Não compilado neste ambiente; exige dependências/runtime Linux do destino |
 | gstreamer_object_lifecycle | Preparado; não executado na RC1 |
 | real_player_open_failure_cancel_shutdown | Preparado; não executado; WAV sintético/fakesinks, HTTP 403/404 local, falhas, zapping e shutdown |
-| release_scripts_filesystem | Preparado; não executado; sintaxe e instalação/rollback/desinstalação em HOME temporário |
-| Scripts Bash | Execução/sintaxe via Bash bloqueada pelo sandbox; revisão estática realizada |
+| release_scripts_filesystem | PASS no Pi, 1,31 s, conforme log fornecido pelo usuário; simulação em HOME temporário |
+| Scripts Bash | Host Windows bloqueado pelo sandbox; sintaxe aprovada no Pi pelo teste #10 |
 | Pacote ARM64 | Gerador pronto; pacote com executável não gerado sem build aarch64 |
 | UI/OSD/video/áudio/Bluetooth reais | Pendentes; nenhum resultado físico inventado |
 
@@ -92,6 +92,28 @@ continuam históricos. A RC1 mantém resolução da interface e glimagesink sem
 alterar proteções elétricas/térmicas, HDMI, X11 ou serviços.
 
 ## Próxima validação objetiva
+
+### Primeira tentativa ARM64 — log fornecido pelo usuário
+
+No checkout extraído no Pi, GNU 14.2.0 configurou SDL2 2.32.4, SDL2_ttf
+2.24.0 e GStreamer 1.26.2. tv_input e tv_menu compilaram, mas tv_player
+parou: SDL_syswm.h inclui Xlib, cuja macro `None` expandia `Command::None`
+para uma constante numérica. Correção: enumerador privado `NoRequest` em
+player.hpp/player.cpp; sem undef global, alteração de pipeline ou dependências.
+
+Nesse mesmo log, `release_scripts_filesystem` **PASS (1,31 s)**: sintaxe Bash e
+simulação de instalação/atualização/rollback/desinstalação. Os outros 11 testes
+foram **Not Run**, pois o build interrompido não gerou seus executáveis;
+não são 11 falhas funcionais. O teste dos scripts não valida o binário ARM64.
+
+A correção ainda exige recompilar a aplicação no Pi e executar os 12 testes.
+O agente continua sem acesso SSH; esta evidência é a saída fornecida pelo usuário.
+
+Verificação local específica do hotfix: teste C++ isolado com o mesmo enum e
+ordem de inclusão (declaração, macro `None=0L`, referências ao enum). A versão
+anterior falhou com o erro de expansão após `::`; a versão `NoRequest`
+compilou com `/W4 /WX` e executou com código 0. A macro foi mantida definida.
+Isso verifica a colisão, não a aplicação SDL/GStreamer completa.
 
 No worktree isolado do Pi, rode diagnóstico, build limpo/CTest completo e
 `JOBS=1 bash scripts/package-arm64.sh`. Faça a matriz física de

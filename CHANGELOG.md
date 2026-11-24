@@ -18,6 +18,9 @@
 
 ### Correções
 
+- Hotfix do primeiro build no Pi: `Command::NoRequest` evita colisão com a
+  macro `None` do X11 incluída por SDL_syswm.h. Rebuild ARM64 ainda necessário.
+
 - Reload não apaga favoritos nem troca por lista inválida.
 - Identidade deixa de depender da posição do canal.
 - Transições e fsync deixam o loop SDL responsivo.

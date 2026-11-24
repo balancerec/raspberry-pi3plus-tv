@@ -29,9 +29,9 @@ Na sessão XFCE do usuário, em um **checkout isolado** desta branch:
 
 ```bash
 bash scripts/diagnose-native.sh
-cmake -S native -B build-native -DCMAKE_BUILD_TYPE=Release
-cmake --build build-native --parallel 1
-ctest --test-dir build-native --output-on-failure
+cmake -S native -B build-native -DCMAKE_BUILD_TYPE=Release &&
+cmake --build build-native --parallel 1 &&
+ctest --test-dir build-native --output-on-failure &&
 bash scripts/run-native.sh --fullscreen --playlist "$HOME/iptv/playlist.m3u"
 ```
 

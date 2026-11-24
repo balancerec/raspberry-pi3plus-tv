@@ -26,7 +26,7 @@ recebe aprovação física por inferência.
 - [ ] CTest completo Linux (12 testes): núcleo, scripts e dois testes GStreamer.
 - [ ] Ownership real de GStreamer com CRITICAL fatal aprovado na RC1.
 - [ ] Player real: WAV → PLAYING/pausa/retomada/stop; falhas/requisições obsoletas/shutdown.
-- [ ] Sintaxe Bash e simulação instalação/atualização/rollback/desinstalação aprovadas.
+- [x] Sintaxe Bash e simulação instalação/atualização/rollback/desinstalação aprovadas (log do Pi fornecido pelo usuário, teste #10, 1,31 s).
 - [ ] Pacote ARM64 com executável/logs/checksums gerado e conferido.
 
 ## Matriz física mínima na TV

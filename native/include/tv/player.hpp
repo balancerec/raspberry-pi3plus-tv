@@ -25,7 +25,8 @@ public:
     void toggleMute();
     PlayerSnapshot snapshot() const;
 private:
-    enum class Command {None,Play,Stop,Shutdown};
+    // Xlib defines the macro None; do not use it as an enumerator here.
+    enum class Command {NoRequest,Play,Stop,Shutdown};
     void run();
     bool createPipeline();
     void releasePipeline();
@@ -38,7 +39,7 @@ private:
     mutable std::mutex mutex_;
     std::condition_variable wake_;
     std::thread worker_;
-    Command pending_=Command::None;
+    Command pending_=Command::NoRequest;
     std::string pendingUri_;
     std::atomic<unsigned long> generation_{0};
     unsigned long currentGeneration_=0;
