@@ -93,17 +93,34 @@ int main(int argc, char** argv) {
     std::signal(SIGTERM, onInterrupt);
     bool fullscreen = false;
     std::string playlist;
+    std::string checkPlaylist;
     for (int i=1;i<argc;++i) {
         if (std::strcmp(argv[i],"--fullscreen")==0) fullscreen=true;
         else if (std::strcmp(argv[i],"--playlist")==0 && i+1<argc) playlist=argv[++i];
-        else if (std::strcmp(argv[i],"--help")==0) { std::puts("Uso: raspberry-tv-native [--fullscreen] [--playlist CAMINHO_M3U]"); return 0; }
+        else if (std::strcmp(argv[i],"--check-playlist")==0 && i+1<argc) checkPlaylist=argv[++i];
+        else if (std::strcmp(argv[i],"--help")==0) {
+            std::puts("Uso: raspberry-tv-native [--fullscreen] [--playlist CAMINHO_M3U]");
+            std::puts("     raspberry-tv-native --check-playlist CAMINHO_M3U");
+            return 0;
+        }
+    }
+    if (!checkPlaylist.empty()) {
+        // Check IPTV list metadata without opening X11, network or the decoder.
+        raspberry_tv::TvModel check;
+        if (!check.loadPlaylist(checkPlaylist)) {
+            std::fprintf(stderr, "Playlist invalida ou vazia (caminho omitido)\n");
+            return 2;
+        }
+        std::printf("Playlist validada: %zu canais, %zu grupos\n",
+                    check.channels().size(), check.groupCount());
+        return 0;
     }
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) {
         std::fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
         return 1;
     }
     const Uint32 flags = SDL_WINDOW_SHOWN | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE);
-    SDL_Window* window = SDL_CreateWindow("Raspberry TV - Native IPTV v0.4", SDL_WINDOWPOS_CENTERED,
+    SDL_Window* window = SDL_CreateWindow("Raspberry TV - Native IPTV v0.5", SDL_WINDOWPOS_CENTERED,
                                            SDL_WINDOWPOS_CENTERED, raspberry_tv::display::NativeWidth, raspberry_tv::display::NativeHeight, flags);
     if (!window) { std::fprintf(stderr, "SDL_CreateWindow: %s\n", SDL_GetError()); SDL_Quit(); return 1; }
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
@@ -183,6 +200,7 @@ int main(int argc, char** argv) {
                 // X11 video area. Never redraw SDL over a playing frame.
                 if (action == Action::Back) {
                     player.stop();
+                    std::puts("Player: interrompido pelo controle; restaurando menu");
                     model.setStatusMessage("Reproducao encerrada");
                     dirty = true;
                 } else if (action == Action::Home) {
@@ -191,13 +209,23 @@ int main(int argc, char** argv) {
                     dirty = true;
                 } else if (action == Action::Confirm || action == Action::Menu) {
                     player.togglePause();
+                } else if (action == Action::Up) {
+                    player.changeVolume(0.05);
+                } else if (action == Action::Down) {
+                    player.changeVolume(-0.05);
+                } else if (action == Action::Details) {
+                    player.toggleMute();
                 } else if (action == Action::NextChannel ||
                            action == Action::PreviousChannel) {
-                    model.dispatch(action);
-                    if (const auto* channel = model.selectedChannel()) {
-                        if (!player.play(channel->url)) {
-                            model.setStatusMessage(player.status());
-                            dirty = true;
+                    if (model.visibleCount() > 1) {
+                        model.dispatch(action);
+                        if (const auto* channel = model.selectedChannel()) {
+                            if (!player.play(channel->url)) {
+                                model.setStatusMessage(player.status());
+                                dirty = true;
+                            } else {
+                                std::puts("Player: canal alterado (URL omitida)");
+                            }
                         }
                     }
                 } else if (action == Action::Favorites) {
