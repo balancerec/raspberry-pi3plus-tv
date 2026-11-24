@@ -25,9 +25,7 @@ com URLs privadas.
 | OSD não visível / conflito WM | Teste `--no-osd`; Options para e exibe ajuda no menu. Não altere compositor/XFCE globalmente. |
 | Encerramento lento | Um source/driver pode bloquear teardown. Não destrua a sessão gráfica/serviços; registre estado sem URLs e investigue o plugin. |
 
-## Alimentação/desempenho
-
-### Avisos PipeWire/OpenAL na seleção automática
+## Áudio: plugin ALSA e seleção de dispositivo
 
 Se aparecerem `can't load config client.conf`, `Failed to create PipeWire event
 context` ou `Could not query RTKit`, o log não confirma qual saída final de áudio
@@ -43,6 +41,22 @@ estar ocupado por outro aplicativo/servidor; registre o erro antes de alterar
 serviços. Um teste curto com audiotestsrc deve usar volume baixo e precisa ser
 ouvido na TV. Detalhes: [autoaudiosink](https://gstreamer.freedesktop.org/documentation/autodetect/autoaudiosink.html)
 e [alsasink](https://gstreamer.freedesktop.org/documentation/alsa/alsasink.html).
+
+No dispositivo do usuário, `aplay -l/-L` identificou Headphones na placa 0 e
+`vc4hdmi`, dispositivo 0, como HDMI. Porém gst-inspect informou que **alsasink
+não está instalado**. Com esse sink explicitamente solicitado, o player retorna
+FAILED/category=3 antes de iniciar o stream. O pacote Debian que o fornece é
+[`gstreamer1.0-alsa`](https://packages.debian.org/trixie/gstreamer1.0-alsa),
+já listado nas dependências da instalação. A instalação deve ser executada
+manualmente pelo usuário; não é necessário recompilar o aplicativo.
+
+Depois de confirmar a disponibilidade do plugin, a preferência por aplicação
+`--audio-sink alsasink --audio-device 'plughw:CARD=vc4hdmi,DEV=0'` seleciona
+a placa HDMI identificada, usando conversão PCM do plug ALSA. A presença da
+placa e do plugin ainda não confirma áudio audível; testar um tom curto/baixo
+e um canal com trilha antes de marcar o requisito como concluído.
+
+## Alimentação/desempenho
 
 O usuário forneceu registro de `get_throttled=0x50005`: bits 0 e 2 ativos
 (subtensão e throttling), e 16/18 históricos. A fonte foi mantida por decisão

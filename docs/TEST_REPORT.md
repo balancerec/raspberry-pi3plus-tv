@@ -138,6 +138,15 @@ O usuário encerrou com Ctrl+C e retornou ao prompt; não há GStreamer-CRITICAL
 no trecho fornecido. Vídeo visível, OSD, áudio audível e ações físicas não foram
 confirmados apenas por esse log. Nenhum novo teste de estresse/desempenho.
 
+### Diagnóstico ALSA posterior — log do usuário
+
+`aplay -l/-L` identificou Headphones (placa 0) e HDMI `vc4hdmi`, dispositivo 0
+(placa 1). `gst-inspect-1.0 alsasink` informou elemento/plugin ausente. A
+execução solicitando `--audio-sink alsasink --audio-device default` retornou
+FAILED/category=3/retry=0. Isso confirma a falta de uma dependência de áudio
+necessária para essa preferência; não demonstra defeito do HDMI. Instalação
+manual de gstreamer1.0-alsa e verificação audível continuam pendentes.
+
 No worktree isolado do Pi, rode diagnóstico, build limpo/CTest completo e
 `JOBS=1 bash scripts/package-arm64.sh`. Faça a matriz física de
 RELEASE_CHECKLIST.md com fonte atual, sem estresse prolongado. Registre
