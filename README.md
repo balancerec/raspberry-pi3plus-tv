@@ -1,123 +1,75 @@
-# Raspberry TV — módulo isolado (v1.0)
+# Raspberry TV Native — 1.0.0-rc1
 
-Extraído do **raspberry-spi-lcd-nrf-system** fornecido pelo usuário. A interface de TV (`tv.html`, `tv.css`, `tv.js`) foi preservada visualmente, com ajustes mínimos nas rotas locais e na consulta de métricas para funcionar **sem o restante do projeto original**.
+TV Box nativa C++17/SDL2/GStreamer para Raspberry Pi, DietPi/Debian Trixie
+ARM64, XFCE/LightDM/X11 e controle DualShock 4. Interface interna **1920×1080**.
 
-## O que foi isolado
+**Status: candidata à validação, não aprovada para uso diário ainda.** O núcleo
+é compilado/testado no Windows. O build completo ARM64 e os testes físicos da
+RC1 estão pendentes. O funcionamento relatado da v0.5 não valida código novo.
+Consulte [o relatório real](docs/TEST_REPORT.md) e [o checklist](docs/RELEASE_CHECKLIST.md).
 
-- **Interface Raspberry TV:** página inicial, cartões de aplicativos, atalhos Netflix/YouTube/Prime Video/Disney+/Spotify/navegador, relógio, navegação pelo teclado e **Gamepad API** do navegador.
-- **Servidor Python independente:** somente leitura, biblioteca padrão Python 3.10+, `/tv`, `/info` e `/api/status`.
-- **Status local:** nome do equipamento, IP, uso de CPU quando disponível, temperatura em sistemas Linux com sensor compatível.
-- **Painel local simplificado:** `/info` substitui o painel administrativo do projeto original e apresenta apenas métricas de leitura.
+## Implementado
 
-## O que NÃO faz parte deste pacote
+- Catálogos locais M3U/M3U8: UTF-8, EXTINF/tvg metadata, grupos, filtro textual
+  opcional, paginação de oito linhas, deduplicação e limites de leitura.
+- Carregamento/recarregamento em background; falha preserva a lista anterior.
+- Favoritos e seleção por identidade estável; volume, mute e preferências
+  em arquivo XDG privado, com substituição atômica e fsync fora do loop SDL.
+- Player com worker exclusivo, estados explícitos, deadlines, até duas
+  reconexões, cancelamento e substituição de solicitações obsoletas.
+- V4L2 H.264 preferido quando disponível; glimagesink/VideoOverlay preservado.
+- OSD em janela X11 separada, sem SDL desenhar no drawable do vídeo.
+- Navegação por controle, reconexão por eventos SDL e teclado simultâneo.
+- Seis módulos preservados. Biblioteca/aplicativos indicam claramente que
+  estão fora do escopo; não oferecem serviços fictícios.
 
-- Gerenciamento SPI, NRF24L01, display ST7735R, GPIO, pareamento Bluetooth, mouse HDMI virtual, configuração de Wi-Fi e APIs administrativas.
-- Servidor original na porta 8080, serviço `raspberry-display.service`, scripts sudo e event loop `main.py`.
-- Entrada via `evdev` no backend: controle PS4 permanece disponível **apenas se o navegador expuser o controle à Gamepad API**. D-pad, botão principal, voltar e home podem depender do mapeamento do navegador/controlador. Use teclado como alternativa.
-- **Não há player IPTV, M3U nem EPG nesta versão.** Os cartões atuais abrem sites externos. Serviços DRM (Netflix, Disney+, Prime Video) podem não reproduzir vídeo no navegador Firefox do Pi 3; atalhos não garantem compatibilidade com codecs/DRM.
+## Compilar e iniciar manualmente no Raspberry
 
-## Segurança e convivência com a aplicação original
-
-- Porta **8090** (a original usa **8080**). Nenhum processo do sistema atual é encerrado.
-- Bind padrão **127.0.0.1** (somente acesso local), sem API de escrita ou comandos de administração.
-- Use `--host 0.0.0.0` somente na rede doméstica confiável. O servidor utiliza HTTP sem autenticação e **não deve ser exposto à internet**.
-- O pacote não modifica login gráfico, LightDM, autostart, rede, Tailscale ou serviços do DietPi.
-- **Evite abrir outro Firefox em modo quiosque simultaneamente** com o Firefox atual, devido à RAM limitada do Raspberry Pi 3.
-
-## Executar no Windows (PowerShell)
-
-Descompacte o ZIP e, dentro da pasta `raspberry-tv-isolada`:
-
-```powershell
-py -3 .\server.py
-```
-
-Ou execute `powershell -ExecutionPolicy Bypass -File .\scripts\run-windows.ps1` se a política local impedir a execução do script. No navegador:
-
-- <http://127.0.0.1:8090/tv> — interface de TV
-- <http://127.0.0.1:8090/info> — informações de leitura
-
-Não é necessário instalar pacotes Python adicionais.
-
-## Executar no Raspberry Pi / DietPi sem modificar a instalação
-
-Do PowerShell do Windows, na pasta onde o ZIP foi baixado:
-
-```powershell
-scp .\raspberry-tv-isolada.zip balancerec@192.168.100.17:/home/balancerec/
-ssh balancerec@192.168.100.17
-```
-
-No terminal SSH:
+Na sessão XFCE do usuário, em um **checkout isolado** desta branch:
 
 ```bash
-cd /home/balancerec
-unzip -q raspberry-tv-isolada.zip
-cd raspberry-tv-isolada
-python3 server.py --host 0.0.0.0 --port 8090
+bash scripts/diagnose-native.sh
+cmake -S native -B build-native -DCMAKE_BUILD_TYPE=Release
+cmake --build build-native --parallel 1
+ctest --test-dir build-native --output-on-failure
+bash scripts/run-native.sh --fullscreen --playlist "$HOME/iptv/playlist.m3u"
 ```
 
-Abra do Windows **na mesma rede local**:
+Não é necessário instalar `codex` no Raspberry para compilar/executar.
+Nunca use sudo para executar a aplicação. Não habilitamos autostart nem
+modificamos serviços, vídeo global, Bluetooth ou áudio do DietPi.
 
-`http://192.168.100.17:8090/tv`
+X confirma/reproduz/pausa; O para/cancela; PS retorna ao início; L1/R1 filtram
+grupos; L2/R2 trocam canais da lista de origem; △ favorita; □ mostra detalhes
+na lista ou alterna mute no vídeo; Options abre ajuda. [Controles completos](docs/CONTROLS.md).
 
-**Alternativa com bind local e túnel SSH:** rode `python3 server.py` no Raspberry. Em outra janela PowerShell use `ssh -L 8090:127.0.0.1:8090 balancerec@192.168.100.17` e abra `http://127.0.0.1:8090/tv` no Windows. Garanta que não haja um servidor local ocupando a porta 8090.
+O arquivo da última playlist é lembrado, mas **nenhum canal inicia sozinho**.
+Recarregue com F5 ou Configurações → Recarregar playlist local.
 
-Para interromper a aplicação de teste, pressione `Ctrl+C` na sessão do servidor. A aplicação principal continuará funcionando na porta 8080.
+## Dependências e entrega
 
-## Serviço opcional systemd (não instalado automaticamente)
+[Instalação, atualização, desinstalação e rollback](docs/INSTALLATION.md).
+`scripts/package-arm64.sh` faz build limpo/CTest no aarch64 e gera pacote
+com binário, documentação, defaults, logs e SHA-256. Não instala nem inicia.
+Instalação opcional em `~/.local/opt/raspberry-tv`, sem afetar a v0.5 existente.
 
-O exemplo `systemd/raspberry-tv@.service` assume que os arquivos estão em `/home/<usuario>/raspberry-tv-isolada` e usa porta 8090 em localhost. Após validar manualmente, instale **se desejar**:
+O servidor Python/arquivos web e a unit systemd legados permanecem no
+repositório por compatibilidade histórica. Não são usados pelo launcher nativo
+e nenhuma unit deve ser habilitada durante esta validação.
 
-```bash
-sudo cp systemd/raspberry-tv@.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now raspberry-tv@balancerec.service
-sudo systemctl status raspberry-tv@balancerec.service --no-pager
-```
+## Limites conhecidos
 
-Desativar esse serviço **não afeta** `raspberry-display.service`:
+- Fonte apresentou `get_throttled=0x50005`: subtensão e throttling ativos e
+  históricos. Não há medição nova de FPS/temperatura/memória nesta entrega.
+- Não prometemos 1080p30 contínuo. Escolha um canal compatível/menos exigente
+  quando necessário; a interface continua Full HD. Sem overclock/kmssink.
+- Codecs/protocolos dependem dos plugins. Não presumimos HEVC/AV1.
+- A apresentação do OSD depende do WM X11 e precisa ser validada no XFCE.
+  `--no-osd` desativa; Options então para o canal e exibe ajuda no menu.
+- Chamadas nativas de plugins rodam fora do SDL, mas um driver que bloqueie
+  indefinidamente pode atrasar teardown/encerramento. Não destruímos a janela
+  enquanto o pipeline ainda pode usá-la.
+- Áudio disponível/volume configurado não prova áudio audível: validação na TV pendente.
 
-```bash
-sudo systemctl disable --now raspberry-tv@balancerec.service
-```
-
-## Estrutura
-
-```text
-raspberry-tv-isolada/
-├── server.py                   # Servidor HTTP independente (sem dependências externas)
-├── static/
-│   ├── tv.html                # Interface de TV extraída (adaptada)
-│   ├── tv.css                 # CSS original preservado
-│   ├── tv.js                  # Navegação local + Gamepad API + status
-│   ├── info.html              # Painel mínimo de leitura (novo)
-│   ├── info.js
-│   └── info.css
-├── scripts/
-│   ├── run-windows.ps1
-│   └── run-linux.sh
-├── systemd/
-│   └── raspberry-tv@.service  # Opcional
-├── tests/
-│   └── test_server.py
-├── SHA256SUMS.txt
-└── README.md
-```
-
-## Verificações
-
-```bash
-python3 -m unittest discover -s tests -v
-python3 -m py_compile server.py
-```
-
-O arquivo `SHA256SUMS.txt` inclui hashes dos arquivos do pacote (exceto o próprio manifesto), para conferência de integridade.
-
-## Critérios de aceitação
-
-- A página `/tv` carrega os estilos e scripts sem depender de SPI/NRF/PS4.
-- A página `/info` exibe métricas do sistema quando disponíveis.
-- As setas, Enter, Esc e Home navegam sem depender de hardware específico.
-- `/api/status` é um endpoint de leitura; POST é recusado.
-- A aplicação original em `:8080` continua intocada.
+Mais detalhes: [arquitetura](docs/ARCHITECTURE.md), [playlists](docs/PLAYLISTS.md),
+[solução de problemas](docs/TROUBLESHOOTING.md), [changelog](CHANGELOG.md).
