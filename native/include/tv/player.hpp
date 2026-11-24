@@ -22,6 +22,8 @@ public:
     void stop();
     void shutdown(); // Idempotent, release GStreamer before SDL/X11 window
     void togglePause();
+    void changeVolume(double delta);
+    void toggleMute();
     bool poll();
     bool active() const { return active_; }
     bool paused() const { return paused_; }
@@ -38,6 +40,8 @@ private:
     bool paused_ = false;
     bool desiredPlaying_ = true;
     bool live_ = false;
+    double volume_ = 0.65; // 65%, conservative on first playback
+    bool muted_ = false;
     std::string status_ = "Player desativado";
 };
 
