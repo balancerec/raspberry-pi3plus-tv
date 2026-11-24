@@ -20,6 +20,7 @@ public:
     bool initialize(SDL_Window* window);
     bool play(const std::string& uri);
     void stop();
+    void shutdown(); // Idempotent, release GStreamer before SDL/X11 window
     void togglePause();
     bool poll();
     bool active() const { return active_; }
