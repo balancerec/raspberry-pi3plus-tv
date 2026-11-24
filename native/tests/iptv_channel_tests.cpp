@@ -76,7 +76,6 @@ int main() {
     verify(model.activeGroup() == "TODOS", "previous group returns all");
     verify(model.visibleCount() == 4, "restored all channels");
 
-    model.dispatch(Action::Favorites);
     model.dispatch(Action::Home);
     model.dispatch(Action::Favorites);
     verify(model.view() == View::Favorites, "open favorite list via triangle on home");
