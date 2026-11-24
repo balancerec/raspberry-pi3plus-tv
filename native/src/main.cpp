@@ -199,7 +199,10 @@ int main(int argc, char** argv) {
                 if(action==Action::Back){player.stop();playbackHelp=false;}
                 else if(action==Action::Home){player.stop();model.dispatch(Action::Home);playbackHelp=false;}
                 else if(action==Action::Confirm)player.togglePause();
-                else if(action==Action::Menu)playbackHelp=!playbackHelp;
+                else if(action==Action::Menu) {
+                    if(osdAvailable && settings.showOsd)playbackHelp=!playbackHelp;
+                    else {player.stop();model.dispatch(Action::Menu);}
+                }
                 else if(action==Action::Up)player.changeVolume(0.05);
                 else if(action==Action::Down)player.changeVolume(-0.05);
                 else if(action==Action::Details)player.toggleMute();

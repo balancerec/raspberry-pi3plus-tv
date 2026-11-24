@@ -1,5 +1,6 @@
 #include "tv/settings.hpp"
 #include <atomic>
+#include <cerrno>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -108,6 +109,7 @@ bool saveUserState(const std::filesystem::path& dir,const UserState& state,std::
 #else
         auto n=write(fd,data.data()+done,data.size()-done);
 #endif
+        if(n<0 && errno==EINTR)continue;
         if(n<=0){ok=false;break;}done+=static_cast<std::size_t>(n);
     }
 #ifdef _WIN32

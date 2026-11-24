@@ -50,6 +50,7 @@ private:
     GstElement* playbin_=nullptr;
     GstBus* bus_=nullptr;
     PlaybackStateMachine machine_;
+    PlaybackFailure pipelineFailure_=PlaybackFailure::Internal;
     std::string uri_;
     bool live_=false,paused_=false,buffering_=false;
     gint64 lastPosition_=-1;

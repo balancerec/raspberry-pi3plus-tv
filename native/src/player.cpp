@@ -5,6 +5,7 @@
 #include <gst/video/videooverlay.h>
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 namespace raspberry_tv {
 std::uint64_t TvPlayer::now() {return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());}
@@ -16,11 +17,13 @@ bool TvPlayer::initialize(SDL_Window* window,const UserSettings& settings) {
     windowHandle_=static_cast<guintptr>(info.info.x11.window);
     if(!windowHandle_ || !validAudioSink(settings.audioSink))return false;
     settings_=settings;snapshot_.volume=settings.volume;snapshot_.muted=settings.muted;
+    exit_=false;headless_=false;pending_=Command::None;machine_.stopped();snapshot_.state=PlaybackState::Idle;
     ready_=true;worker_=std::thread(&TvPlayer::run,this);return true;
 }
 bool TvPlayer::initializeHeadless() {
     if(ready_)return false;
-    headless_=true;ready_=true;worker_=std::thread(&TvPlayer::run,this);return true;
+    headless_=true;exit_=false;pending_=Command::None;machine_.stopped();snapshot_.state=PlaybackState::Idle;
+    ready_=true;worker_=std::thread(&TvPlayer::run,this);return true;
 }
 PlayerSnapshot TvPlayer::snapshot() const {std::lock_guard<std::mutex> lock(mutex_);return snapshot_;}
 bool TvPlayer::play(const std::string& uri) {
@@ -48,6 +51,7 @@ void TvPlayer::togglePause() {
     desiredPause_=!desiredPause_;wake_.notify_one();
 }
 void TvPlayer::changeVolume(double delta) {
+    if(!std::isfinite(delta))return;
     std::lock_guard<std::mutex> lock(mutex_);snapshot_.volume=std::clamp(snapshot_.volume+delta,0.0,1.0);audioDirty_=true;wake_.notify_one();
 }
 void TvPlayer::toggleMute() {std::lock_guard<std::mutex> lock(mutex_);snapshot_.muted=!snapshot_.muted;audioDirty_=true;wake_.notify_one();}
@@ -87,12 +91,13 @@ void sourceSetup(GstElement*,GstElement* source,gpointer) {
 }
 }
 bool TvPlayer::createPipeline() {
+    pipelineFailure_=PlaybackFailure::Codec;
     playbin_=gst_element_factory_make("playbin","raspberry-tv-playbin");
     if(!playbin_)return false;
     gst_object_ref_sink(GST_OBJECT(playbin_));
     GstElement* video=gst_element_factory_make(headless_?"fakesink":"glimagesink",nullptr);
     GstElement* audio=gst_element_factory_make(headless_?"fakesink":settings_.audioSink.c_str(),nullptr);
-    if(!video || !audio) {if(video)gst_object_unref(video);if(audio)gst_object_unref(audio);releasePipeline();return false;}
+    if(!video || !audio) {if(!audio)pipelineFailure_=PlaybackFailure::Audio;if(video)gst_object_unref(video);if(audio)gst_object_unref(audio);releasePipeline();return false;}
     gst_object_ref_sink(video);gst_object_ref_sink(audio);
     if(headless_)g_object_set(audio,"sync",TRUE,nullptr);
     if(!headless_) {
@@ -101,7 +106,7 @@ bool TvPlayer::createPipeline() {
         gst_video_overlay_handle_events(GST_VIDEO_OVERLAY(video),FALSE);
         if(!settings_.audioDevice.empty()) {
             auto* p=g_object_class_find_property(G_OBJECT_GET_CLASS(audio),"device");
-            if(!p || G_PARAM_SPEC_VALUE_TYPE(p)!=G_TYPE_STRING || !(p->flags&G_PARAM_WRITABLE)) {gst_object_unref(video);gst_object_unref(audio);releasePipeline();return false;}
+            if(!p || G_PARAM_SPEC_VALUE_TYPE(p)!=G_TYPE_STRING || !(p->flags&G_PARAM_WRITABLE)) {pipelineFailure_=PlaybackFailure::Audio;gst_object_unref(video);gst_object_unref(audio);releasePipeline();return false;}
             g_object_set(audio,"device",settings_.audioDevice.c_str(),nullptr);
         }
     }
@@ -116,7 +121,7 @@ bool TvPlayer::startStream(bool retry) {
     if(currentGeneration_!=generation_)return false;
     machine_.open(now(),retry);publish("Abrindo canal...");
     lastPosition_=-1;lastProgress_=now();lastProbe_=now();
-    if(!createPipeline()){handleFailure(PlaybackFailure::Internal);return false;}
+    if(!createPipeline()){handleFailure(pipelineFailure_);return false;}
     if(currentGeneration_!=generation_){releasePipeline();return false;}
     g_object_set(playbin_,"uri",uri_.c_str(),nullptr);
     const auto change=gst_element_set_state(playbin_,GST_STATE_PLAYING);
@@ -127,6 +132,7 @@ bool TvPlayer::startStream(bool retry) {
 void TvPlayer::handleFailure(PlaybackFailure failure) {
     releasePipeline();
     if(currentGeneration_!=generation_)return;
+    {std::lock_guard<std::mutex> lock(mutex_);if(currentGeneration_==generation_)desiredPause_=false;}
     machine_.fail(failure,now(),uri_.rfind("file://",0)!=0);
     std::string status=playbackFailureMessage(failure);
     if(machine_.state()==PlaybackState::RetryWait)status+="; nova tentativa "+std::to_string(machine_.attempts())+"/2 (O cancela)";
@@ -179,7 +185,9 @@ void TvPlayer::inspectBus() {
         gst_message_unref(msg);
         if(failed){handleFailure(failure);return;}
         if(eos) {
-            if(uri_.rfind("file://",0)==0){releasePipeline();machine_.stopped();publish("Fim do arquivo");}
+            if(uri_.rfind("file://",0)==0){releasePipeline();machine_.stopped();
+                {std::lock_guard<std::mutex> lock(mutex_);if(currentGeneration_==generation_)desiredPause_=false;}
+                publish("Fim do arquivo");}
             else handleFailure(PlaybackFailure::Network);
             return;
         }
