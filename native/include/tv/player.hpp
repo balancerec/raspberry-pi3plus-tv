@@ -1,48 +1,58 @@
 #pragma once
-
+#include "tv/playback_state.hpp"
+#include "tv/settings.hpp"
 #include <gst/gst.h>
-#include <string>
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 struct SDL_Window;
-
 namespace raspberry_tv {
-
-// GStreamer is isolated from TvModel and ControllerInput.
-// X11/SDL window integration is deliberately experimental; the existing shell
-// remains available if a channel cannot be started.
+// Only the worker owns GstObject references and calls GStreamer state APIs.
+// SDL owns the X11 drawable until shutdown() joins that worker.
 class TvPlayer {
 public:
-    TvPlayer() = default;
+    TvPlayer()=default;
     ~TvPlayer();
-
-    TvPlayer(const TvPlayer&) = delete;
-    TvPlayer& operator=(const TvPlayer&) = delete;
-
-    bool initialize(SDL_Window* window);
+    TvPlayer(const TvPlayer&)=delete;TvPlayer& operator=(const TvPlayer&)=delete;
+    bool initialize(SDL_Window*,const UserSettings& settings=UserSettings{});
+    bool initializeHeadless(); // real GStreamer integration tests, fakesinks only
     bool play(const std::string& uri);
     void stop();
-    void shutdown(); // Idempotent, release GStreamer before SDL/X11 window
+    void shutdown();
     void togglePause();
     void changeVolume(double delta);
     void toggleMute();
-    bool poll();
-    bool active() const { return active_; }
-    bool paused() const { return paused_; }
-    const std::string& status() const { return status_; }
-
+    PlayerSnapshot snapshot() const;
 private:
+    enum class Command {None,Play,Stop,Shutdown};
+    void run();
     bool createPipeline();
-
-    guintptr windowHandle_ = 0;
-    GstElement* playbin_ = nullptr;
-    GstBus* bus_ = nullptr;
-    bool ready_ = false;
-    bool active_ = false;
-    bool paused_ = false;
-    bool desiredPlaying_ = true;
-    bool live_ = false;
-    double volume_ = 0.65; // 65%, conservative on first playback
-    bool muted_ = false;
-    std::string status_ = "Player desativado";
+    void releasePipeline();
+    bool startStream(bool retry);
+    void handleFailure(PlaybackFailure);
+    void publish(const std::string& status={});
+    void inspectBus();
+    void applyAudio();
+    static std::uint64_t now();
+    mutable std::mutex mutex_;
+    std::condition_variable wake_;
+    std::thread worker_;
+    Command pending_=Command::None;
+    std::string pendingUri_;
+    std::atomic<unsigned long> generation_{0};
+    unsigned long currentGeneration_=0;
+    bool ready_=false,exit_=false,headless_=false;
+    bool desiredPause_=false,audioDirty_=false;
+    PlayerSnapshot snapshot_;
+    UserSettings settings_;
+    guintptr windowHandle_=0;
+    GstElement* playbin_=nullptr;
+    GstBus* bus_=nullptr;
+    PlaybackStateMachine machine_;
+    std::string uri_;
+    bool live_=false,paused_=false,buffering_=false;
+    gint64 lastPosition_=-1;
+    std::uint64_t lastProgress_=0,lastProbe_=0;
 };
-
 } // namespace raspberry_tv

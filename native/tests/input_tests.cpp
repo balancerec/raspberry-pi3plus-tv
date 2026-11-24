@@ -61,5 +61,16 @@ int main() {
     in.onButton(Button::Triangle, true, 822); expect(in, 822, {Action::Favorites});
     in.onButton(Button::Square, true, 823); expect(in, 823, {Action::Details});
     in.disconnect(); expect(in, 2000, {});
+    // Reconnection starts a fresh controller state; queued old events disappear.
+    in.onButton(Button::Cross,true,2100);
+    in.disconnect();expect(in,2200,{});
+    in.onButton(Button::Cross,true,2300);expect(in,2300,{Action::Confirm});
+    in.disconnect();
+    in.onAxis(Axis::TriggerLeft,25000,2400);expect(in,2400,{Action::PreviousChannel});
+    in.disconnect();
+    in.onAxis(Axis::TriggerLeft,25000,2500);expect(in,2500,{Action::PreviousChannel});
+    // Stability arithmetic remains correct when SDL's millisecond counter wraps.
+    in.disconnect();in.onAxis(Axis::LeftX,27000,0xfffffff0u);
+    expect(in,0x20u,{});expect(in,0x40u,{Action::Right});
     std::cout << "ControllerInput no-repeat tests passed\n";
 }
