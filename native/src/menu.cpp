@@ -20,6 +20,20 @@ std::string attribute(const std::string& extinf, const std::string& name) {
     const auto end = extinf.find('"', start);
     return end == std::string::npos ? "" : extinf.substr(start, end - start);
 }
+std::size_t extinfNameSeparator(const std::string& extinf) {
+    // M3U attributes may contain commas within quoted values; a plain find(',')
+    // would truncate the label or misparse group-title="Noticias, Brasil".
+    bool insideQuotes = false;
+    bool escaped = false;
+    for (std::size_t i = 0; i < extinf.size(); ++i) {
+        const char c = extinf[i];
+        if (c == '"' && !escaped) insideQuotes = !insideQuotes;
+        if (c == ',' && !insideQuotes) return i;
+        if (c == '\\' && !escaped) escaped = true;
+        else escaped = false;
+    }
+    return std::string::npos;
+}
 }
 std::vector<Channel> parseM3u(std::istream& input, std::size_t limit) {
     std::vector<Channel> result;
@@ -32,7 +46,7 @@ std::vector<Channel> parseM3u(std::istream& input, std::size_t limit) {
         if (line.empty()) continue;
         if (line.rfind("#EXTINF", 0) == 0) {
             pendingGroup = attribute(line, "group-title");
-            const auto comma = line.find(',');
+            const auto comma = extinfNameSeparator(line);
             pendingName = comma == std::string::npos ? "" : trim(line.substr(comma + 1));
             if (pendingName.empty()) pendingName = attribute(line, "tvg-name");
             continue;
