@@ -3,9 +3,11 @@
 TV Box nativa C++17/SDL2/GStreamer para Raspberry Pi, DietPi/Debian Trixie
 ARM64, XFCE/LightDM/X11 e controle DualShock 4. Interface interna **1920×1080**.
 
-**Status: candidata à validação, não aprovada para uso diário ainda.** O núcleo
-é compilado/testado no Windows. O build completo ARM64 e os testes físicos da
-RC1 estão pendentes. O funcionamento relatado da v0.5 não valida código novo.
+**Status: candidata à validação física, não aprovada para uso diário ainda.**
+Após o hotfix X11, o usuário compilou a aplicação completa no Raspberry e
+executou **12/12 testes com sucesso (4,46 s)**. O log da UI informa saída e
+renderização 1920×1080 e reconhecimento do PS4. Vídeo visível, áudio audível,
+navegação e reconexão física ainda exigem confirmação.
 Consulte [o relatório real](docs/TEST_REPORT.md) e [o checklist](docs/RELEASE_CHECKLIST.md).
 
 ## Implementado

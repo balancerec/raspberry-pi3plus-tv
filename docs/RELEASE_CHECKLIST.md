@@ -22,15 +22,17 @@ recebe aprovação física por inferência.
 
 ## Build / integração Linux ainda necessários
 
+- [x] Aplicação completa ARM64 compilada após hotfix X11 (build retomado; log fornecido pelo usuário).
 - [ ] Build completo limpo ARM64 com SDL2/GStreamer 1.26.
-- [ ] CTest completo Linux (12 testes): núcleo, scripts e dois testes GStreamer.
-- [ ] Ownership real de GStreamer com CRITICAL fatal aprovado na RC1.
-- [ ] Player real: WAV → PLAYING/pausa/retomada/stop; falhas/requisições obsoletas/shutdown.
+- [x] CTest completo Linux (12/12 PASS, 4,46 s; log fornecido pelo usuário).
+- [x] Ownership real de GStreamer com CRITICAL fatal aprovado na RC1 (teste #11).
+- [x] Player real com fakesinks: WAV → PLAYING/pausa/retomada/stop; falhas/requisições obsoletas/shutdown (teste #12).
 - [x] Sintaxe Bash e simulação instalação/atualização/rollback/desinstalação aprovadas (log do Pi fornecido pelo usuário, teste #10, 1,31 s).
 - [ ] Pacote ARM64 com executável/logs/checksums gerado e conferido.
 
 ## Matriz física mínima na TV
 
+- [x] Log SDL confirma renderização interna e saída 1920×1080 e reconhecimento do PS4 (não confirma navegação/vídeo/áudio).
 - [ ] Conferir modelo real do Raspberry pelo device tree.
 - [ ] Abrir UI e confirmar saída/renderização 1920×1080 sem sobreposição de textos.
 - [ ] DualShock navega, confirma, volta, retorna ao início e abre ajuda.

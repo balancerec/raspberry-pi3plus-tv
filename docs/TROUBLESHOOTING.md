@@ -27,6 +27,23 @@ com URLs privadas.
 
 ## Alimentação/desempenho
 
+### Avisos PipeWire/OpenAL na seleção automática
+
+Se aparecerem `can't load config client.conf`, `Failed to create PipeWire event
+context` ou `Could not query RTKit`, o log não confirma qual saída final de áudio
+foi escolhida. autoaudiosink procura sinks disponíveis; um candidato pode falhar
+durante essa busca. Não instale/reconfigure PipeWire ou RTKit apenas para
+silenciar esses avisos.
+
+Com o app fechado, confira `gst-inspect-1.0 alsasink`, `aplay -l` e `aplay -L`.
+O app já aceita `--audio-sink alsasink --audio-device default`; isso seleciona
+ALSA no aplicativo, mas `default` não garante HDMI. Para HDMI, use o identificador
+real mostrado por `aplay -L`, sem presumir número da placa. O dispositivo pode
+estar ocupado por outro aplicativo/servidor; registre o erro antes de alterar
+serviços. Um teste curto com audiotestsrc deve usar volume baixo e precisa ser
+ouvido na TV. Detalhes: [autoaudiosink](https://gstreamer.freedesktop.org/documentation/autodetect/autoaudiosink.html)
+e [alsasink](https://gstreamer.freedesktop.org/documentation/alsa/alsasink.html).
+
 O usuário forneceu registro de `get_throttled=0x50005`: bits 0 e 2 ativos
 (subtensão e throttling), e 16/18 históricos. A fonte foi mantida por decisão
 do usuário. Não desativamos proteção e não aplicamos overclock.

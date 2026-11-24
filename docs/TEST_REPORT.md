@@ -4,8 +4,10 @@
 
 **Candidata de código à validação. Não é uma release 1.0 fisicamente aprovada.**
 O núcleo passou em build limpo CMake/CTest no Windows: **9/9, 1,11 s**.
-O servidor Python legado passou: **9/9, 0,797 s**. Não houve acesso ao Pi nem
-build completo SDL/GStreamer; nenhum binário ARM64 é apresentado como compilado.
+O servidor Python legado passou: **9/9, 0,797 s**. Depois do hotfix X11, o
+usuário compilou a aplicação completa no Pi e executou **12/12 testes com
+sucesso, 4,46 s**. O agente não acessou o Pi; os resultados ARM64 são do log
+fornecido pelo usuário. O binário foi gerado no dispositivo, não neste host.
 
 ## Ambiente e procedência
 
@@ -61,21 +63,21 @@ sem depender de assert desabilitado pelo Release.
 Componente legado: `python -m unittest discover -s tests -v`: **9/9 PASS**.
 Não é prova do novo player; demonstra preservação do componente preexistente.
 
-## Tentativas bloqueadas e testes não executados
+## Situação da integração
 
 | Verificação | Resultado real |
 |---|---|
 | BUILD_NATIVE_APP=ON neste host | Configuração falhou: Could NOT find PkgConfig (PKG_CONFIG_EXECUTABLE) |
-| C++ SDL2/GStreamer novo | Não compilado neste ambiente; exige dependências/runtime Linux do destino |
-| gstreamer_object_lifecycle | Preparado; não executado na RC1 |
-| real_player_open_failure_cancel_shutdown | Preparado; não executado; WAV sintético/fakesinks, HTTP 403/404 local, falhas, zapping e shutdown |
-| release_scripts_filesystem | PASS no Pi, 1,31 s, conforme log fornecido pelo usuário; simulação em HOME temporário |
+| C++ SDL2/GStreamer novo | Build completo no Pi após hotfix, conforme log do usuário; não compilado neste Windows |
+| gstreamer_object_lifecycle | PASS no Pi, 0,20 s, criticals fatais habilitados pelo CTest |
+| real_player_open_failure_cancel_shutdown | PASS no Pi, 1,59 s; WAV/fakesinks, HTTP 403/404 local, falhas, zapping e shutdown |
+| release_scripts_filesystem | PASS na última execução do Pi, 1,26 s; simulação em HOME temporário |
 | Scripts Bash | Host Windows bloqueado pelo sandbox; sintaxe aprovada no Pi pelo teste #10 |
-| Pacote ARM64 | Gerador pronto; pacote com executável não gerado sem build aarch64 |
-| UI/OSD/video/áudio/Bluetooth reais | Pendentes; nenhum resultado físico inventado |
+| Pacote ARM64 | Ainda não gerado/conferido; o usuário já possui binário compilado no Pi |
+| UI/OSD/video/áudio/Bluetooth reais | Log SDL confirma 1920×1080 e PS4 reconhecido; apresentação/navegação/áudio/reconexão físicos pendentes |
 
 No Linux com BUILD_NATIVE_APP=ON, são registrados **12 testes** (9 núcleo,
-1 scripts e 2 GStreamer). Execute todos com CTest antes de aprovar a candidata.
+1 scripts e 2 GStreamer). Todos passaram no log ARM64 de 4,46 s.
 O teste de scripts simula a arquitetura apenas para exercer o gerenciamento
 de arquivos; não é validação ARM64. Em root, esse teste é explicitamente skipped;
 rode como usuário normal, conforme exigência de execução do produto.
@@ -106,7 +108,7 @@ simulação de instalação/atualização/rollback/desinstalação. Os outros 11
 foram **Not Run**, pois o build interrompido não gerou seus executáveis;
 não são 11 falhas funcionais. O teste dos scripts não valida o binário ARM64.
 
-A correção ainda exige recompilar a aplicação no Pi e executar os 12 testes.
+A primeira tentativa foi seguida pela execução bem-sucedida registrada abaixo.
 O agente continua sem acesso SSH; esta evidência é a saída fornecida pelo usuário.
 
 Verificação local específica do hotfix: teste C++ isolado com o mesmo enum e
@@ -114,6 +116,27 @@ ordem de inclusão (declaração, macro `None=0L`, referências ao enum). A vers
 anterior falhou com o erro de expansão após `::`; a versão `NoRequest`
 compilou com `/W4 /WX` e executou com código 0. A macro foi mantida definida.
 Isso verifica a colisão, não a aplicação SDL/GStreamer completa.
+
+### Build ARM64 após hotfix e execução gráfica — log do usuário
+
+O build retomado no mesmo diretório gerou tv_player, raspberry-tv-native e
+todos os executáveis de teste. **12/12 PASS, 0 falhas, 4,46 s**. É uma retomada
+incremental após a correção, não uma segunda compilação integral em diretório novo.
+O teste GStreamer usa fakesinks: não prova áudio audível nem vídeo HDMI.
+
+Execução com DISPLAY=:0 e catálogo de teste local informou:
+
+```text
+Renderizacao interna: 1920 x 1080; saida atual: 1920 x 1080
+Controle principal: PS4 Controller (0)
+```
+
+Também foram emitidos avisos PipeWire sobre client.conf ausente e erros OpenAL
+ao criar contexto PipeWire/consultar RTKit. Eles exigem investigação da saída
+de áudio, mas o trecho não identifica o sink final nem confirma silêncio ou som.
+O usuário encerrou com Ctrl+C e retornou ao prompt; não há GStreamer-CRITICAL
+no trecho fornecido. Vídeo visível, OSD, áudio audível e ações físicas não foram
+confirmados apenas por esse log. Nenhum novo teste de estresse/desempenho.
 
 No worktree isolado do Pi, rode diagnóstico, build limpo/CTest completo e
 `JOBS=1 bash scripts/package-arm64.sh`. Faça a matriz física de
