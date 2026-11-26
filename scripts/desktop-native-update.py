@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Explicit, per-user native update. Existing projects and private data survive."""
 import hashlib
+import importlib.util
 import io
 import json
 import os
@@ -170,7 +171,15 @@ def main(spec=None, launcher_source=None):
         files = source_files(download(spec), spec)
         install_source(files, spec, root)
         build(root)
-        activate(root, launcher)
+        if globals().get("AUDIO_FIX") is True:
+            source = root / "scripts/spotify-audio-setup.py"
+            specifier = importlib.util.spec_from_file_location("raspberry_tv_audio_setup", source)
+            setup = importlib.util.module_from_spec(specifier)
+            specifier.loader.exec_module(setup)
+            backend, value = setup.prepare(root)
+            setup.apply(root, launcher, backend, value, activate)
+        else:
+            activate(root, launcher)
         print("Controles de midia atualizados. Nas proximas vezes, abra pelo icone Raspberry TV.", flush=True)
         print("Versao instalada:", root, flush=True)
     return 0

@@ -12,6 +12,7 @@ import contextlib
 import hashlib
 import getpass
 import http.server
+import importlib.util
 import json
 import math
 import os
@@ -447,6 +448,14 @@ def clean_label(value, limit=240):
     return "".join(c for c in str(value or "") if c.isprintable())[:limit]
 
 
+def load_audio_backend():
+    path = Path(__file__).with_name("audio_backend.py")
+    spec = importlib.util.spec_from_file_location("raspberry_tv_audio_backend", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class Soloist:
     """Adapter for the official, separately installed Soloist executable.
 
@@ -560,6 +569,18 @@ class Soloist:
         pulse_sink = configuration.get("pulse_sink", "")
         if isinstance(pulse_sink, str) and pulse_sink:
             environment["PULSE_SINK"] = pulse_sink
+        backend = load_audio_backend()
+        try:
+            with backend.PrivatePulse(backend.profile(self.store.directory)) as audio_environment:
+                environment.update(audio_environment)
+                if audio_environment and "--pipewire-device" in arguments:
+                    index = arguments.index("--pipewire-device")
+                    del arguments[index:index + 2]
+                return self._foreground_process(arguments, environment)
+        except RuntimeError as error:
+            raise SpotifyError("unavailable", str(error)) from None
+
+    def _foreground_process(self, arguments, environment):
         print("Soloist em primeiro plano. Selecione Raspberry TV no Spotify da mesma rede. Ctrl+C encerra.", flush=True)
         # Official Soloist currently accepts the key as an argv option. Never
         # print argv or exceptions containing it. See the documented limitation.
@@ -686,7 +707,7 @@ class Soloist:
             before = self.ctl(["now"], True)
             if before.get("status") not in ("playing", "paused", "idle", "buffering"):
                 raise SpotifyError("response", "Estado de reproducao Soloist invalido.")
-            if before["status"] not in ("playing", "buffering"):
+            if before.get("is_active") is False or before["status"] not in ("playing", "buffering"):
                 return self.resume(before=before)
             command = "pause"
         if command in ("play", "resume"):

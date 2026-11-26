@@ -566,4 +566,28 @@ cmd.exe e PowerShell reais contra um processo nativo que confere os argumentos,
 sem executar SSH. A identidade do argumento remoto foi conferida byte a byte.
 Linha final: 6.809 caracteres, abaixo do limite do cmd.exe.
 Host CMake/CTest após adicionar o observador: 14/14 PASS, 2,85 s.
-Coleta válida no Pi e diagnóstico da causa continuam pendentes.
+### Coleta válida e correção de saída privada — 26/11/2026
+
+O usuário executou o coletor corrigido. A sessão UID 1001 não apresentou
+sockets PipeWire/PulseAudio; pactl/wpctl estavam ausentes ou inacessíveis.
+ALSA enumerou Headphones e vc4hdmi, sem placa PS4 nesse inventário. Isso não
+exclui por si só um destino Bluetooth, mas identifica um requisito ausente
+para a saída Linux do Soloist, diferente da saída ALSA direta da IPTV.
+
+Soloist 1.4.0.14, build 1795608227 (20261125), linux/aarch64: PID 419009
+permaneceu ativo. Primeiro houve playing com is_active=false e posição
+avançando, compatível com a conta tocando em outro dispositivo. Ao transferir,
+houve buffering e depois paused com is_active=true, posição 71694 ms fixa.
+Não foi uma queda/reinicialização do processo, nem prova de áudio local.
+
+Foi implementado PulseAudio privado para vc4hdmi, sem configuração global,
+com módulos explícitos, cookie privado e encerramento antes de abrir IPTV.
+O setup testa um tom de 0,25 s em nível baixo; envio bem-sucedido não prova
+que o usuário ouviu. A instalação no Pi e a confirmação audível continuam
+pendentes. A correção também evita que Play pause uma reprodução remota
+quando o Raspberry ainda está inativo.
+
+Host Windows após a implementação: **108 casos Python, 97 PASS e 11 SKIP
+POSIX**, 2,535 s. Build limpo portátil C++ Release/MSVC: **15/15 CTest PASS**,
+4,78 s. Não inclui SDL/GStreamer no Windows. Testes Linux do servidor privado,
+PCM em null sink e download/extração real de dependências aguardam a CI.

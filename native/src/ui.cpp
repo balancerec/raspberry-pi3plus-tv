@@ -334,8 +334,9 @@ void TvUi::spotifyContent(SDL_Renderer* r,const TvModel& model) {
     circle(r,166,365,15,Mint,true);circle(r,209,351,15,Mint,true);
     text(r,heading_,data.track.empty()?"Escolha uma musica":data.track,318,235,White,850);
     text(r,body_,data.artist.empty()?"Selecione Raspberry TV no Spotify":data.artist,320,280,Muted,850);
-    const bool playing=data.playback=="playing";
-    const std::string state=playing?"REPRODUZINDO":data.playback=="paused"?"PAUSADO":data.playback=="buffering"?"CARREGANDO":data.playback=="idle"?"PRONTO PARA OUVIR":"AGUARDANDO CONEXAO";
+    const bool elsewhere=spotify_->local() && data.hasFeatures && !data.active;
+    const bool playing=data.playback=="playing" && !elsewhere;
+    const std::string state=elsewhere?"EM OUTRO DISPOSITIVO":playing?"REPRODUZINDO":data.playback=="paused"?"PAUSADO":data.playback=="buffering"?"CARREGANDO":data.playback=="idle"?"PRONTO PARA OUVIR":"AGUARDANDO CONEXAO";
     text(r,small_,state,320,324,playing?Mint:Muted,510);
     text(r,small_,data.volume<0?"VOLUME --":"VOLUME "+std::to_string(data.volume)+"%",850,350,Muted,300);
     for(std::size_t i=0;i<SpotifyPanel::MediaRects.size();++i) {
@@ -350,7 +351,7 @@ void TvUi::spotifyContent(SDL_Renderer* r,const TvModel& model) {
         circle(r,x,y,box.w/2-2,selected?Mint:SDL_Color{26,58,64,255},true);
         if(selected)circle(r,x,y,box.w/2+3,Mint,false);
         if(i==2) {
-            if(playing || data.playback=="buffering") {fill(r,{x-13,y-18,9,36},ink);fill(r,{x+5,y-18,9,36},ink);}
+            if(playing || (!elsewhere && data.playback=="buffering")) {fill(r,{x-13,y-18,9,36},ink);fill(r,{x+5,y-18,9,36},ink);}
             else triangle(r,x,y,38,true,ink);
         } else if(i==1 || i==3) {
             triangle(r,x+(i==1?26:-6),y,28,i==3,ink);

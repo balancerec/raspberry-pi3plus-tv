@@ -153,8 +153,10 @@ int main(int argc, char** argv) {
     if(!error.empty())model.setStatusMessage(error);
     raspberry_tv::StateWriter writer(stateDirectory);
     raspberry_tv::PlaylistLoader loader;
+    const bool manageSpotifyAudio=raspberry_tv::spotifyPrivateAudioEnabled();
     char* executableDirectory=SDL_GetBasePath();
-    const auto defaultSpotifyHelper=(std::filesystem::u8path(executableDirectory?executableDirectory:"./")/".."/"integrations"/"spotify"/"spotify_client.py").lexically_normal().u8string();
+    const auto executableRoot=(std::filesystem::u8path(executableDirectory?executableDirectory:"./")/"..").lexically_normal();
+    const auto defaultSpotifyHelper=(manageSpotifyAudio?executableRoot/"scripts"/"desktop-launcher.py":executableRoot/"integrations"/"spotify"/"spotify_client.py").u8string();
     if(executableDirectory)SDL_free(executableDirectory);
     const auto* configuredSpotifyHelper=std::getenv("RASPBERRY_TV_SPOTIFY_HELPER");
     raspberry_tv::SpotifyWorker spotify(raspberry_tv::makeSpotifyRunner(configuredSpotifyHelper?configuredSpotifyHelper:defaultSpotifyHelper));
@@ -168,20 +170,26 @@ int main(int argc, char** argv) {
     ControllerInput input,keyboard;openFirstController();
     bool running=true,dirty=true,savePending=false,playbackHelp=false,loadPending=!playlist.empty();
     raspberry_tv::ChannelQueue queue;
+    raspberry_tv::SpotifyAudioFocus audioFocus;
     std::uint32_t lastAction=SDL_GetTicks(),osdUntil=0;
     std::uint32_t lastSpotifyRequest=0,spotifySecond=0;
     bool spotifyVisible=false;
     auto previousSnapshot=player.snapshot();
     auto shownMinute=std::time(nullptr)/60;
     auto reload=[&] {
-        if(player.snapshot().active()){model.setStatusMessage("Pare a reproducao antes de recarregar");return;}
+        if(player.snapshot().active() || audioFocus.waiting()){model.setStatusMessage("Pare a reproducao antes de recarregar");return;}
         const auto path=model.playlistPath().empty()?playlist:model.playlistPath();
         if(path.empty())model.setStatusMessage("Inicie com --playlist ARQUIVO local");
         else if(loader.start(path)){loadPending=true;playlist=path;model.setStatusMessage("Recarregando playlist...");}
     };
     auto beginPlayback=[&] {
         queue.start(model);playbackHelp=false;
-        if(const auto* channel=queue.current(model);channel && !player.play(channel->url))model.setStatusMessage(player.snapshot().status);
+        if(const auto* channel=queue.current(model)) {
+            if(manageSpotifyAudio) {
+                spotify.cancel();spotifyPanel.useLocal(spotifyPanel.local());audioFocus.begin(channel->url,SDL_GetTicks());
+                model.setStatusMessage("Preparando audio da TV... O cancela");
+            } else if(!player.play(channel->url))model.setStatusMessage(player.snapshot().status);
+        }
     };
     auto submitSpotify=[&](raspberry_tv::SpotifyArguments arguments) {
         if(arguments.empty()){model.setStatusMessage("Controle indisponivel nesta faixa");return;}
@@ -235,6 +243,19 @@ int main(int argc, char** argv) {
         for(const auto action:actions) {
             lastAction=SDL_GetTicks();osdUntil=lastAction+5000;savePending=true;dirty=true;
             const auto snap=player.snapshot();
+            if(audioFocus.waiting()) {
+                if(action==Action::Back || action==Action::Home) {
+                    spotify.cancel();audioFocus.cancel();model.setStatusMessage("Abertura cancelada");
+                    if(action==Action::Home)model.dispatch(Action::Home);
+                } else if(action==Action::NextChannel || action==Action::PreviousChannel) {
+                    if(queue.step(action==Action::NextChannel?1:-1,model)) {
+                        if(const auto* channel=queue.current(model)) {
+                            model.selectIdentity(raspberry_tv::channelIdentity(*channel));audioFocus.replace(channel->url);
+                        }
+                    }
+                }
+                continue;
+            }
             if(snap.active()) {
                 if(action==Action::Back){player.stop();playbackHelp=false;}
                 else if(action==Action::Home){player.stop();model.dispatch(Action::Home);playbackHelp=false;}
@@ -301,14 +322,24 @@ int main(int argc, char** argv) {
             if(previousView==raspberry_tv::View::Apps && model.view()!=previousView) {spotify.cancel();spotifyPanel.requestCancelled();}
         }
         if(auto reply=spotify.take()) {
-            spotifyPanel.accept(*reply,SDL_GetTicks());model.setAppRowCount(spotifyPanel.rows().size());
-            if(reply->hasPage && !reply->entries.empty())model.selectAppRow(raspberry_tv::SpotifyPanel::ControlRows);
-            if(reply->code=="ready" && !reply->hasPlayback && !reply->hasPage)lastSpotifyRequest=SDL_GetTicks()-10000;
-            model.setStatusMessage(reply->message);dirty=true;
+            if(audioFocus.waiting() && audioFocus.issued()) {
+                if(auto uri=audioFocus.finish(reply->code=="ready")) {
+                    if(!player.play(*uri))model.setStatusMessage(player.snapshot().status);
+                } else model.setStatusMessage("Audio ocupado; pare o Spotify e tente novamente");
+            } else {
+                spotifyPanel.accept(*reply,SDL_GetTicks());model.setAppRowCount(spotifyPanel.rows().size());
+                if(reply->hasPage && !reply->entries.empty())model.selectAppRow(raspberry_tv::SpotifyPanel::ControlRows);
+                if(reply->code=="ready" && !reply->hasPlayback && !reply->hasPage)lastSpotifyRequest=SDL_GetTicks()-10000;
+                model.setStatusMessage(reply->message);
+            }
+            dirty=true;
         }
         if(auto result=loader.take()) {loadPending=false;model.applyPlaylist(std::move(*result),playlist);dirty=true;savePending=true;lastAction=SDL_GetTicks();}
         const auto snap=player.snapshot();
         const auto now=SDL_GetTicks();
+        if(audioFocus.expired(now)) {
+            spotify.cancel();audioFocus.cancel();model.setStatusMessage("Audio nao liberou a tempo; tente novamente");dirty=true;
+        } else if(audioFocus.needsRequest(spotify.busy()) && spotify.submit({"audio-yield"}))audioFocus.submitted();
         const bool mediaVisible=model.view()==raspberry_tv::View::Apps && spotifyPanel.mediaMode() && !model.showHelp() && !snap.active();
         if(mediaVisible && !spotify.busy() && (!spotifyVisible || static_cast<std::uint32_t>(now-lastSpotifyRequest)>=10000)) {
             auto command=spotifyPanel.statusCommand();

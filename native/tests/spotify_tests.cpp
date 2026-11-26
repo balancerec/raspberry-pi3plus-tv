@@ -76,6 +76,17 @@ int main() {
     check(!player.controlEnabled(0) && player.mediaShortcut(Action::NextChannel).empty(),"unsupported Web controls do not pretend local functionality");
     check(player.activateMedia().front()=="toggle","Web play button uses explicit toggle");
 
+    SpotifyPanel remote;auto elsewhere=media;elsewhere.active=false;remote.accept(elsewhere,1000);
+    check(remote.controlLabel(2)=="Reproduzir" && remote.nowPlaying().find("Em outro dispositivo:")==0,"remote playback is not labelled local playback");
+    SpotifyAudioFocus focus;focus.begin("first",0xfffffff0U);
+    check(focus.needsRequest(false) && !focus.needsRequest(true),"HDMI barrier waits for old cancelled worker");
+    focus.submitted();focus.replace("latest");
+    check(!focus.needsRequest(false) && !focus.expired(1000),"one release request handles channel replacement");
+    check(focus.finish(true).value()=="latest" && !focus.waiting(),"only latest channel starts after HDMI release");
+    focus.begin("cancelled",100);focus.submitted();focus.cancel();check(!focus.finish(true),"cancel discards pending TV playback");
+    focus.begin("timed",100);check(focus.expired(8100),"audio barrier has bounded timeout");
+    focus.submitted();check(!focus.finish(false) && !focus.waiting(),"failed release restores control without opening pipeline");
+
     TvModel model;model.dispatch(Action::Down);model.dispatch(Action::Confirm);
     check(model.view()==View::Apps && model.visibleCount()==11,"Apps reachable by DS4 actions");
     model.setAppRowCount(12);model.dispatch(Action::Right);check(model.selectedRow()==6,"Apps pagination");

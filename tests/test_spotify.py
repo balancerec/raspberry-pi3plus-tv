@@ -508,6 +508,15 @@ class SpotifyTests(unittest.TestCase):
         self.assertEqual(records[-1][1], "paused")
         self.assertEqual(sum(call[-1] == "pause" for call in calls), 1)
 
+    def test_soloist_toggle_activates_local_device_instead_of_pausing_other_device(self):
+        other = (0, b'{"status":"playing","is_active":false}')
+        active = (0, b'{"status":"paused","is_active":true}')
+        playing = (0, b'{"status":"playing","is_active":true}')
+        client, calls, _ = self.soloist(other, (0, b""), active, (0, b""), playing)
+        records = client.records("soloist-toggle")
+        self.assertEqual(records[-1][1], "playing")
+        self.assertEqual([call[-1] for call in calls if call[-1] != "--json"], ["activate", "play"])
+
     def test_soloist_toggle_same_action_pauses_then_resumes(self):
         playing = (0, b'{"status":"playing","is_active":true}')
         paused = (0, b'{"status":"paused","is_active":true}')
@@ -607,6 +616,22 @@ class SpotifyTests(unittest.TestCase):
         self.assertEqual(arguments[arguments.index("--ws") + 1], "127.0.0.1:0")
         self.assertEqual(arguments[arguments.index("--cache-size") + 1], "100")
         self.assertEqual(spawn.call_args.kwargs["stderr"], spotify.subprocess.DEVNULL)
+
+    def test_private_audio_overrides_only_sdk_child_and_preserves_saved_routes(self):
+        self.store.write("soloist.private.json", {"api_key": "spak_" + "synthetic_test_value_0000", "pipewire_device": "old-node", "pulse_sink": "old-sink"})
+        client, _, _ = self.soloist()
+        process = mock.Mock(); process.wait.return_value = 0
+        backend = mock.Mock()
+        backend.PrivatePulse.return_value.__enter__ = mock.Mock(return_value={"PULSE_SERVER": "unix:private-fixture", "PULSE_SINK": "raspberry_tv_hdmi"})
+        backend.PrivatePulse.return_value.__exit__ = mock.Mock(return_value=False)
+        before = os.environ.copy()
+        with mock.patch.object(spotify, "load_audio_backend", return_value=backend), mock.patch.object(spotify.subprocess, "Popen", return_value=process) as spawn, contextlib.redirect_stdout(io.StringIO()):
+            client.run_foreground()
+        self.assertEqual(spawn.call_args.kwargs["env"]["PULSE_SERVER"], "unix:private-fixture")
+        self.assertEqual(spawn.call_args.kwargs["env"]["PULSE_SINK"], "raspberry_tv_hdmi")
+        self.assertNotIn("--pipewire-device", spawn.call_args.args[0])
+        self.assertEqual(self.store.read("soloist.private.json")["pipewire_device"], "old-node")
+        self.assertEqual(os.environ, before)
 
     def test_soloist_foreground_interrupt_terminates_owned_process(self):
         self.store.write("soloist.private.json", {"api_key": "spak_" + "synthetic_test_value_0000"})

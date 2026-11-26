@@ -1,5 +1,19 @@
 # Changelog
 
+## Não lançado — saída HDMI privada do Spotify — 2026-11-26
+
+- Coleta real: Soloist mantém o PID ao passar de buffering para pausa ativa;
+  não há sockets PipeWire/PulseAudio acessíveis na sessão UID 1001.
+- Saída PulseAudio opcional e privada para ALSA HDMI, iniciada e encerrada
+  junto ao cliente gerenciado. Dependências ausentes são baixadas e extraídas
+  no diretório do usuário; nenhum pacote ou serviço global é instalado.
+- Liberação assíncrona do cliente Spotify antes de abrir IPTV, com prazo,
+  cancelamento e substituição do canal solicitado. GStreamer preservado.
+- Play em reprodução de outro dispositivo passa a ativar/retomar no Raspberry,
+  em vez de pausar a conta. A UI distingue esse estado de reprodução local.
+- Correção manual pelo atualizador e rollback do perfil de áudio; confirmação
+  física de áudio e regressão IPTV continuam pendentes.
+
 ## Não lançado — diagnóstico da transferência Spotify — 2026-11-26
 
 - Observador somente leitura de 30 s para Connect carregando/voltando a pausa,

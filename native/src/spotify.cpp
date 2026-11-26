@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <charconv>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -90,6 +92,16 @@ SpotifyReply parseSpotifyReply(const std::string& wire) {
     } catch(const std::exception&) {return invalid();}
 }
 
+bool spotifyPrivateAudioEnabled() {
+    const auto* configured=std::getenv("XDG_CONFIG_HOME");
+    const auto* home=std::getenv("HOME");
+    if((!configured || !*configured) && (!home || !*home))return false;
+    const auto base=configured && *configured?std::filesystem::u8path(configured):std::filesystem::u8path(home)/".config";
+    std::ifstream file(base/"raspberry-tv"/"spotify"/"audio-focus-v1");
+    char line[64]{};file.getline(line,sizeof(line));
+    return std::string(line)=="raspberry-tv-private-hdmi-v1";
+}
+
 SpotifyWorker::SpotifyWorker(SpotifyRunner runner):runner_(std::move(runner)) {thread_=std::thread(&SpotifyWorker::run,this);}
 SpotifyWorker::~SpotifyWorker(){shutdown();}
 bool SpotifyWorker::submit(SpotifyArguments arguments) {
@@ -158,7 +170,7 @@ void SpotifyPanel::accept(const SpotifyReply& reply,std::uint32_t now) {
     if(reply.hasPlayback) {
         media_=reply;mediaAt_=now;
         playback_=reply.playback;
-        nowPlaying_=reply.playback=="playing"?"Tocando: ":reply.playback=="paused"?"Pausado: ":reply.playback=="buffering"?"Buffering: ":"Sem reproducao ativa";
+        nowPlaying_=local_ && reply.hasFeatures && !reply.active?"Em outro dispositivo: ":reply.playback=="playing"?"Tocando: ":reply.playback=="paused"?"Pausado: ":reply.playback=="buffering"?"Buffering: ":"Sem reproducao ativa";
         if(!reply.track.empty())nowPlaying_+=(reply.playback=="idle"?" | ":"")+reply.track;
         if(!reply.artist.empty())nowPlaying_+=" / "+reply.artist;
         if(!reply.device.empty())nowPlaying_+=" | "+reply.device;
@@ -186,7 +198,7 @@ void SpotifyPanel::rebuild() {
         {"Fila local de reproducao", "X listar", {"soloist-queue"}},
         {"Ativar Raspberry TV no Spotify", "Dispositivo local", {"soloist-activate"}},
         {"Retomar reproducao local", "Soloist", {"soloist-resume"}},
-        {playback_=="paused"?"Retomar Spotify local":
+        {media_.hasFeatures && !media_.active?"Reproduzir no Raspberry TV":playback_=="paused"?"Retomar Spotify local":
          playback_=="playing" || playback_=="buffering"?"Pausar Spotify local":"Pausar / retomar Spotify local",
          "X alterna pausa/reproducao", {"soloist-toggle"}},
         {"Faixa anterior", "Soloist", {"soloist-previous"}},
@@ -230,7 +242,7 @@ bool SpotifyPanel::controlEnabled(std::size_t control) const {
 std::string SpotifyPanel::controlLabel(std::size_t control) const {
     static const std::array<const char*,12> labels{{"Aleatorio","Anterior","Reproduzir","Proxima","Repetir","Mudo","Volume -","Volume +","Fila","Dispositivo","Mais","Atualizar"}};
     if(control>=labels.size())return {};
-    if(control==2 && (playback_=="playing" || playback_=="buffering"))return "Pausar";
+    if(control==2 && !(local_ && media_.hasFeatures && !media_.active) && (playback_=="playing" || playback_=="buffering"))return "Pausar";
     if(control==5 && media_.volume==0)return "Ativar som";
     return labels[control];
 }

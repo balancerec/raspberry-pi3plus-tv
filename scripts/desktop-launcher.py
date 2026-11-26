@@ -210,6 +210,17 @@ def rollback_native():
     if not preferred_projects({"current": previous}):
         raise RuntimeError("Versao anterior indisponivel; selecao atual preservada.")
     stop_native()
+    current = data.get("current")
+    if current and (Path(current) / "integrations/spotify/spotify_client.py").is_file():
+        session = SoloistSession(current)
+        core = session.core()
+        if hasattr(core, "load_audio_backend"):
+            backend = core.load_audio_backend()
+            if backend.profile():
+                session.stop()
+                if session.provider_running():
+                    raise RuntimeError("Feche o Soloist externo antes de voltar a versao anterior.")
+                backend.disable_profile()
     write_owned(pointer, candidate)
     try:
         launch()
@@ -437,13 +448,25 @@ class SoloistSession:
 def spotify_request(arguments):
     project = Path(os.environ.get("RASPBERRY_TV_SPOTIFY_PROJECT", ""))
     if not (project / "integrations/spotify/spotify_client.py").is_file():
-        project = next((p for p in projects() if (p / "integrations/spotify/spotify_client.py").is_file()), project)
+        local = Path(__file__).resolve().parent.parent if "__file__" in globals() else Path.home()
+        project = next((p for p in [local, *projects()] if (p / "integrations/spotify/spotify_client.py").is_file()), project)
     session = SoloistSession(project)
     try:
         core = session.core()
     except Exception:
         print("RTVSPOTIFY\t1\nstatus\tsetup\tIntegracao%20Spotify%20ausente%20ou%20invalida.")
         return 1
+    if arguments[0] == "audio-yield":
+        try:
+            session.stop()
+            if session.provider_running():
+                core.emit([("status", "unavailable", "Spotify externo ainda usa o audio; encerre essa instancia e tente novamente.")])
+                return 1
+            core.emit([("status", "ready", "Audio liberado para a TV.")])
+            return 0
+        except Exception:
+            core.emit([("status", "unavailable", "Nao foi possivel liberar o audio para a TV.")])
+            return 1
     if arguments[0].startswith("soloist-") and arguments[0] not in ("soloist-configure", "soloist-audio", "soloist-run"):
         try:
             session.ensure()

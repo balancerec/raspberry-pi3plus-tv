@@ -9,5 +9,6 @@ case "${1:-}" in --help|--version|--check-playlist) ;; *)
 esac
 # Avoid accidental token disclosure through inherited verbose Gst debug logging.
 export GST_DEBUG=0
-export RASPBERRY_TV_SPOTIFY_HELPER="$root/integrations/spotify/spotify_client.py"
+export RASPBERRY_TV_SPOTIFY_HELPER="${RASPBERRY_TV_SPOTIFY_HELPER:-$root/scripts/desktop-launcher.py}"
+export RASPBERRY_TV_SPOTIFY_PROJECT="${RASPBERRY_TV_SPOTIFY_PROJECT:-$root}"
 exec "$binary" "$@"

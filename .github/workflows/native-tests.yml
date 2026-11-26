@@ -15,7 +15,7 @@ jobs:
       - name: Native dependencies (CI runner only)
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends build-essential cmake pkg-config python3 python3-pil fonts-dejavu-core libsdl2-dev libsdl2-ttf-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+          sudo apt-get install -y --no-install-recommends build-essential cmake pkg-config python3 python3-pil fonts-dejavu-core libsdl2-dev libsdl2-ttf-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good pulseaudio pulseaudio-utils
       - name: Clean native build
         run: |
           cmake -S native -B build-ci -DCMAKE_BUILD_TYPE=Release -DBUILD_NATIVE_APP=ON -DBUILD_TESTING=ON
@@ -24,6 +24,8 @@ jobs:
         run: ctest --test-dir build-ci --output-on-failure
       - name: Legacy Python tests
         run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: App-private portable PulseAudio package (CI only, no system install)
+        run: python3 tests/private_pulse_smoke.py
       - name: Export actual SDL media frames
         run: |
           python3 - <<'PY'

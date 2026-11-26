@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 #include "tv/input.hpp"
 
@@ -35,6 +36,29 @@ SpotifyReply parseSpotifyReply(const std::string& wire);
 using SpotifyArguments = std::vector<std::string>;
 using SpotifyCancel = std::shared_ptr<std::atomic<bool>>;
 using SpotifyRunner = std::function<std::string(const SpotifyArguments&, const SpotifyCancel&)>;
+
+bool spotifyPrivateAudioEnabled();
+// A single cancellable barrier before GStreamer takes the same HDMI device.
+class SpotifyAudioFocus {
+public:
+    void begin(std::string uri,std::uint32_t now) {uri_=std::move(uri);deadline_=now+8000;waiting_=true;issued_=false;}
+    void replace(std::string uri) {if(waiting_)uri_=std::move(uri);}
+    bool waiting() const {return waiting_;}
+    bool issued() const {return issued_;}
+    bool needsRequest(bool busy) const {return waiting_ && !issued_ && !busy;}
+    void submitted() {issued_=true;}
+    bool expired(std::uint32_t now) const {return waiting_ && static_cast<std::int32_t>(now-deadline_)>=0;}
+    std::optional<std::string> finish(bool success) {
+        if(!waiting_ || !issued_)return std::nullopt;
+        auto result=success?std::optional<std::string>(std::move(uri_)):std::nullopt;
+        cancel();return result;
+    }
+    void cancel() {waiting_=false;issued_=false;uri_.clear();}
+private:
+    std::string uri_;
+    std::uint32_t deadline_=0;
+    bool waiting_=false,issued_=false;
+};
 
 // One in-flight request; no queue of repeated controller commands. Cancel makes
 // stale results unobservable; the process adapter terminates its child promptly.
