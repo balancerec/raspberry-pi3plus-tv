@@ -223,6 +223,7 @@ Uma instância já aberta do executável do usuário evita nova abertura.
 
 No Windows, dê duplo clique em `scripts/install-desktop-windows.cmd`, com
 Python instalado em `C:\Python314`, como nesta máquina de desenvolvimento.
+No pacote central extraído, `ABRIR_NO_WINDOWS.cmd` chama esse instalador.
 O instalador copia os arquivos para `%LOCALAPPDATA%\Programs\RaspberryTV` e
 cria **Raspberry TV.lnk** na área de trabalho localizada do Windows. Esse
 atalho abre o app na TV por SSH e instala o ícone local do Pi no primeiro uso.
@@ -233,3 +234,17 @@ Nenhum autostart é criado. Para remover, exclua o atalho Windows e a pasta
 Programs\RaspberryTV acima. No Pi, remova somente os dois `.desktop` gerados,
 identificados por `X-RaspberryTV-Launcher=1`, e o diretório desktop-launcher.
 Playlists, favoritos, configurações, chave Soloist e binários são preservados.
+
+## Pacote central de fontes
+
+`python scripts/package-source.py --output-dir dist` gera ZIP e TAR versionados
+pelo commit, seus SHA-256 e um JSON de procedência. Exporta apenas arquivos do
+Git, exige checkout limpo, confere SHA256SUMS.txt e recusa configurações
+privadas, chaves Soloist e playlists fora das fixtures de teste. Entregas
+existentes não são sobrescritas. Não inclui binários nativos ou Soloist.
+TV, Spotify, atalhos, diagnóstico, testes e documentação ficam no mesmo pacote.
+
+O empacotamento nativo ARM64 inclui também o launcher Windows, o instalador
+do atalho, o ícone e o launcher XFCE; copiar/extrair esse pacote no Windows
+permite usar o instalador em `scripts`. A instalação do atalho permanece uma
+ação manual, sem hook de instalação do CMake ou autostart.

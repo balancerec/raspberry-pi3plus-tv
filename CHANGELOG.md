@@ -1,5 +1,15 @@
 # Changelog
 
+## Não lançado — pacote central — 2026-11-26
+
+- TV, Spotify, atalhos Windows/XFCE e diagnóstico reunidos no pacote central.
+- Abertura Windows na raiz do pacote e distribuição dos arquivos do atalho
+  também pelo CMake/pacote ARM64, sem instalação automática.
+- Exportação ZIP/TAR do commit limpo, verificação de hashes e credenciais,
+  metadados de procedência e preservação das entregas anteriores.
+- Publicação autorizada nas branches de integração Spotify e finalização;
+  áudio Spotify físico permanece pendente, sem aprovação da release final.
+
 ## Não lançado — integração Spotify — 2026-11-25
 
 - Abertura manual por ícone: launcher XFCE sem terminal e ponte Windows por

@@ -99,3 +99,14 @@ recebe aprovação física por inferência.
 - [ ] Instalar na área de trabalho Windows pela sessão normal do usuário
   (a gravação direta do agente recebeu Acesso negado).
 - [ ] Primeiro uso no Pi: ícone visível, abertura do app e prevenção de duplicata.
+
+## Consolidação do pacote central — 26/11/2026
+
+- [x] Reunir TV, integração Spotify, atalhos e diagnóstico no mesmo código-fonte.
+- [x] Incluir todos os arquivos do atalho no layout de instalação CMake/ARM64.
+- [x] Build limpo portável e 11/11 CTest aprovados novamente antes da publicação.
+- [x] Suíte Python completa aprovada no host, com o teste POSIX pendente.
+- [x] Empacotador recusa checkout com alterações não commitadas.
+- [ ] Gerar e conferir ZIP/TAR central e hashes antes da entrega.
+- [x] Usuário autorizou publicar a integração Spotify e o pacote central no Git.
+- [ ] Novo build completo ARM64 e confirmação física do áudio Spotify.

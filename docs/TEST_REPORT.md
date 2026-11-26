@@ -370,4 +370,24 @@ instalação no host também esbarrou nas permissões de criação dos diretóri
 temporários e não é registrada como aprovada. Permissões reais Linux,
 ícone visível e abertura física no Pi seguem pendentes.
 
+### Consolidação e publicação do pacote central — 26/11/2026
+
+TV, Spotify, diagnóstico e atalhos reunidos no pacote central. CMake passa
+a instalar os dois helpers de desktop, o instalador Windows e o ICO junto
+ao helper Spotify e diagnóstico. A instalação dos ícones continua manual.
+O exportador de fontes exige commit limpo, confere o manifesto e preserva
+entregas anteriores; a recusa a checkout sujo foi executada e aprovada.
+
+Reconfiguração e **compilação limpa** Release/MSVC no diretório isolado
+`build-spotify-controls-final`: sem erros. **11/11 CTest PASS, 2,99 s**.
+A suíte Python completa também foi executada; o skip POSIX no Windows não
+é convertido em aprovação de permissões Linux. Os logs locais são
+`central-configure.log`, `central-build.log`, `central-ctest.log` e
+`central-python.log`, ignorados pelo Git. Nenhum teste físico novo foi feito.
+
+Publicação da integração e da branch de finalização autorizada pelo usuário.
+O main remoto observado antes da publicação estava em `7fc92e9` (merge
+anterior do usuário), e a branch de finalização em `e84c664`. O agente não
+realiza merge ou atualização do main. Áudio Spotify continua sem confirmação.
+
 ---

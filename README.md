@@ -28,9 +28,25 @@ Consulte [o relatório real](docs/TEST_REPORT.md) e [o checklist](docs/RELEASE_C
 - Seis módulos preservados. Biblioteca continua fora do escopo. Na branch
   Spotify, APLICATIVOS oferece controle Soloist local e Web API opcional.
 
-## Spotify opcional nesta branch
+## Pacote central: TV, Spotify e ícone de abertura
 
-`feature/native-spotify-integration` adiciona funções nativas em APLICATIVOS:
+O pacote central inclui a interface TV, integração Spotify, diagnóstico e
+ícones de abertura manual. No Windows, extraia o ZIP completo e dê duplo
+clique em **ABRIR_NO_WINDOWS.cmd**; ele instala o atalho **Raspberry TV**.
+O primeiro acesso conectado também instala o ícone no desktop do Raspberry.
+Pelo VNC, esse ícone abre o executável existente sem terminal. O SSH pode
+solicitar sua senha quando a abertura parte do Windows; ela não é salva.
+Nenhum autostart é criado. [Instalação e remoção](docs/INSTALLATION.md#ícone-para-abertura-manual).
+
+O ZIP/TAR de fontes contém código compilável, sem executável ARM64 ou cliente
+Soloist oficial. Para gerar uma cópia auditada a partir de um checkout limpo:
+`python scripts/package-source.py`. O pacote nativo ARM64, gerado no Pi por
+`scripts/package-arm64.sh`, também inclui os helpers e arquivos dos atalhos.
+
+## Spotify opcional
+
+A integração `feature/native-spotify-integration`, incluída na branch central
+`feature/native-tv-release-v10`, adiciona funções nativas em APLICATIVOS:
 controle Soloist local (estado, fila, pausa/retomada, faixas e volume) e Web API
 opcional (playlists, faixas e dispositivos da conta, OAuth PKCE). O Soloist
 oficial é instalado separadamente pelo usuário; nenhuma chave ou binário
