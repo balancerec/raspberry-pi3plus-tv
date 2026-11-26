@@ -492,8 +492,43 @@ Após adicionar seus testes, a suíte Python completa executou **86 casos,
 capacidade e confirmação de busca/shuffle/repeat, manifesto/caminhos seguros,
 preservação da versão anterior em falha e rollback. O payload Windows foi
 decodificado em teste sem SSH. Sintaxe PowerShell do instalador conferida
-sem executar a instalação. Novos CMake/CTest e render SDL Linux aguardam CI.
+sem executar a instalação. A validação posterior do CMake/CTest e render SDL Linux está registrada abaixo.
 
 O updater não foi executado contra o Raspberry nesta etapa. O acesso SSH do
 agente está indisponível; a entrega prepara a ação explícita do usuário.
 Nenhuma reprodução ou medição física de áudio/FPS/alimentação foi inventada.
+
+#### Evidência final da mudança visual
+
+O commit de implementação **13a13b28951332c3eb44e9b42c3ea42fabf038b1** foi
+publicado nas branches Spotify e central. A
+[CI Linux central 45838118192](https://github.com/balancerec/raspberry-pi3plus-tv/actions/runs/45838118192)
+concluiu com sucesso: build limpo da aplicação SDL/GStreamer completa,
+**18/18 CTest PASS em 10,89 s** e **86/86 Python PASS em 9,676 s**, sem skips.
+O teste `spotify_fullhd_media_rendering` gera seis quadros 1920×1080 com SDL
+software real: parado, tocando, pausado/mudo, indisponível, fila e opções.
+Esses quadros estão no artefato `spotify-native-media-ui` da execução.
+
+A inspeção visual do quadro principal detectou lacunas nos símbolos
+preenchidos quando desenhados em passos de design e ampliados 1,5×. Os
+símbolos agora são preenchidos diretamente em pixels nativos; a prévia foi
+renderizada e inspecionada novamente. Botões, título, artista, progresso,
+volume e rodapé permanecem separados e legíveis, sem sobreposição no quadro.
+SHA-256 da prévia final:
+`5466ed947649a2a1be62f17212e323973c52b88684cbcb471bfac7d563d59813`.
+A captura contém apenas metadados artificiais de teste; não é um teste na TV.
+
+A verificação portável final do host também passou: **13/13 CTest, 2,66 s**.
+O exportador gerou e releu ZIP/TAR com **101 arquivos Git, 100 hashes de
+fontes e um identificador de release gerado**. O verificador do updater foi
+executado contra o archive real do Git, além de fixtures negativas, e
+aceitou os 101 arquivos. O instalador e seus dois modos de transporte foram
+testados sem rede/SSH; o pacote final recebe o commit de documentação atual.
+
+O download binário do artefato por URL não estava acessível neste host. A
+prévia foi obtida pelos logs do GitHub Connector, que transportam a mesma
+imagem PNG da fixture em blocos; não houve reconstrução gráfica ou mockup.
+Nenhum código do player mudou depois da CI de implementação citada acima.
+O agente não executou SSH, não substituiu a instalação do Pi e não confirmou
+áudio físico, Bluetooth, FPS ou alimentação. A ação do usuário no instalador
+é necessária para aplicar o build no dispositivo e cumprir o aceite físico.
