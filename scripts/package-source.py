@@ -42,10 +42,11 @@ def main():
                 if re.search(rb"spak_[A-Za-z0-9_-]{15,}", data):
                     raise RuntimeError("Credential pattern refused: " + name)
                 files[name] = data
-    required = ("ABRIR_NO_WINDOWS.cmd", "integrations/spotify/spotify_client.py",
+    required = ("ABRIR_NO_WINDOWS.cmd", "CORRIGIR_AUDIO_SPOTIFY_NO_WINDOWS.cmd",
+                "integrations/spotify/spotify_client.py", "integrations/spotify/audio_backend.py",
                 "scripts/spotify.sh", "scripts/desktop-launcher.py", "scripts/desktop-windows.py",
                 "scripts/install-desktop-windows.cmd", "scripts/desktop-native-update.py",
-                "native/raspberry-tv.ico", "docs/SPOTIFY.md")
+                "scripts/spotify-audio-setup.py", "native/raspberry-tv.ico", "docs/SPOTIFY.md")
     for name in required:
         if name not in files:
             raise RuntimeError("Incomplete central bundle: " + name)

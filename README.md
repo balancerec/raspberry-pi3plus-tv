@@ -31,6 +31,13 @@ abra pelo ícone normal; ele não recompila. [Detalhes](docs/INSTALLATION.md#atu
 
 ## Implementado
 
+A coleta de 26/11 identificou ausência de servidor PipeWire/PulseAudio
+acessível na sessão do Soloist. O pacote inclui a correção opcional
+`CORRIGIR_AUDIO_SPOTIFY_NO_WINDOWS.cmd`: saída privada para HDMI, sem instalar
+pacotes ou serviços globais. Abra esse arquivo após extrair o ZIP completo.
+O teste audível no Raspberry permanece pendente; veja
+[o procedimento e rollback](docs/SPOTIFY.md#saída-hdmi-privada).
+
 - Catálogos locais M3U/M3U8: UTF-8, EXTINF/tvg metadata, grupos, filtro textual
   opcional, paginação de oito linhas, deduplicação e limites de leitura.
 - Carregamento/recarregamento em background; falha preserva a lista anterior.

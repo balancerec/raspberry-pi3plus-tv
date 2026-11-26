@@ -87,7 +87,8 @@ recebe aprovação física por inferência.
 - [x] Corrigir alternância pausa/retomada e cabeçalho desatualizado; testes no host.
 - [x] Testar preferência de saída isolada no processo e preservação da chave.
 - [x] Preparar diagnóstico de saídas/mute/fluxos sem credenciais.
-- [ ] Obter diagnóstico real e identificar a saída usada pelo Soloist.
+- [x] Obter diagnóstico real: sem sockets PipeWire/PulseAudio acessíveis;
+  ALSA enumera Headphones e HDMI. Saída audível Soloist ainda pendente.
 - [ ] Compilar e executar os 15 CTest no Pi após esta correção.
 - [ ] Confirmar música audível, pausa/retomada, faixas e volume na TV.
 
@@ -155,5 +156,23 @@ recebe aprovação física por inferência.
 - [x] Preparar observador limitado a 30 s, sem comandos de reprodução, credenciais ou mudanças de serviços.
 - [x] Testar transições, progresso, PID, endpoint local, limites e redaction com fixtures.
 - [x] Preparar coletor Windows de duplo clique e relatório local; sintaxe e payload conferidos sem SSH.
-- [ ] Coletar o estado real durante a falha de transferência no Raspberry.
+- [x] Coletar o estado real durante a falha: PID estável, buffering seguido
+  de paused/ativo, sem servidor de áudio acessível na sessão.
 - [ ] Identificar e corrigir a causa real; confirmar reprodução Spotify audível.
+
+## Saída privada HDMI — 26/11/2026
+
+- [x] Registrar versão real Soloist e distinguir reprodução remota/inativa.
+- [x] Implementar servidor privado, perfil separado e cookie, sem instalação
+  de pacotes/serviços globais ou alteração da rota GStreamer existente.
+- [x] Corrigir Play remoto/inativo para ativar/retomar o Raspberry.
+- [x] Implementar liberação assíncrona para IPTV, cancelamento e prazo.
+- [x] Testar rollback do perfil, preservação da chave e identidade do processo.
+- [x] Build limpo Linux SDL/GStreamer e 20/20 CTest aprovados.
+- [x] 108/108 testes Python Linux aprovados, sem skips.
+- [x] Download/hash/extração APT e PCM/null sink privados aprovados no runner.
+- [x] Preparar entrada Windows explícita, guia e rollback do perfil.
+- [ ] Aplicar no Raspberry e validar dependências ARM64/Trixie e tom HDMI.
+- [ ] Confirmar música audível, pausa/retomada, faixas, volume e mute.
+- [ ] Confirmar alternância Spotify/IPTV e liberação física do HDMI.
+- [ ] Aprovar regressão Full HD/DualShock e encerramento no dispositivo.

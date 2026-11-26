@@ -123,3 +123,26 @@ saúde; remova caminhos privados, tokens e credenciais.
 - Não houve som: a barra de mídia não configura a saída de áudio. Preserve o
   diagnóstico PipeWire/PulseAudio descrito em SPOTIFY.md; volume confirmado
   pelo Soloist ainda não prova áudio audível no hardware.
+
+## Connect entra em pausa ao selecionar Raspberry TV
+
+A coleta de 26/11 mostrou o SDK vivo, sem servidor PipeWire/Pulse acessível,
+e transição buffering → paused/ativo. O áudio IPTV confirmado usa ALSA direto.
+Execute a correção explícita do pacote central descrita em
+[SPOTIFY.md](SPOTIFY.md#saída-hdmi-privada). Ela cria saída privada para vc4hdmi,
+preserva a chave e não configura o controle PS4 como destino de áudio.
+
+`hdmi_ocupado`: feche a reprodução IPTV ou outro app que detenha esse HDMI e
+repita a correção. Ela não encerra servidores de áudio de terceiros.
+`modulo_ou_biblioteca_ausente` ou falha APT: o runtime privado não ficou
+disponível; a preferência anterior é preservada. Não use sudo nem instale
+pacotes sugeridos aleatoriamente. Guarde a mensagem da etapa que falhou.
+`Audio ocupado ou cliente externo`: a liberação antes de IPTV não conseguiu
+parar um cliente gerenciado. O menu volta ao controle do usuário; o launcher
+não encerra processos desconhecidos para forçar o canal.
+
+Após aplicar, o coletor também consulta o socket privado autenticado, sem
+expor cookie/token. playing com is_active=false representa estado remoto da
+conta; a UI mostra Em outro dispositivo e Play ativa o Raspberry. Não use
+esse estado como confirmação de áudio local. Se falhar, mantenha o relatório
+e use Voltar a versão anterior no ícone do Pi.

@@ -590,4 +590,19 @@ quando o Raspberry ainda está inativo.
 Host Windows após a implementação: **108 casos Python, 97 PASS e 11 SKIP
 POSIX**, 2,535 s. Build limpo portátil C++ Release/MSVC: **15/15 CTest PASS**,
 4,78 s. Não inclui SDL/GStreamer no Windows. Testes Linux do servidor privado,
-PCM em null sink e download/extração real de dependências aguardam a CI.
+PCM em null sink e download/extração real de dependências passaram na
+[CI Linux central 45879222304](https://github.com/balancerec/raspberry-pi3plus-tv/actions/runs/45879222304),
+commit **c4248dbc593be2dbb72d99cafde5805da19f4147**: build completo limpo
+SDL/GStreamer, **20/20 CTest PASS em 12,30 s**, **108/108 Python PASS em
+11,246 s**, sem skips. A extração real baixou dois pacotes APT no runner,
+conferiu hashes e iniciou o servidor privado com PCM/null sink. As demais
+dependências já estavam instaladas nesse runner Ubuntu; o resolvedor e os
+pacotes ARM64/Trixie do Raspberry ainda precisam de execução no destino.
+Não houve teste de HDMI, conta Spotify, Bluetooth ou áudio audível nessa CI.
+
+O pacote central inclui entrada explícita de correção de áudio para Windows,
+além da abertura normal. A entrega atualiza os helpers do ícone antes de
+aplicar o build, evitando que uma abertura futura reinstale o launcher antigo.
+O coletor foi regenerado para reconhecer também o socket privado; transporte
+cmd.exe/PowerShell/processo nativo conferido byte a byte sem SSH, com linha de
+7.585 caracteres. O relatório real fornecido pelo usuário foi preservado.

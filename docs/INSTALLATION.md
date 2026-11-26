@@ -293,3 +293,19 @@ remova dados XDG do Spotify ou a instalação aprovada original.
 
 A aplicação da atualização e seu áudio no Pi continuam pendentes até execução
 real. O agente não teve uma conexão SSH utilizável nesta etapa.
+
+## Corrigir a saída Spotify sem servidor de áudio
+
+Após extrair o ZIP central completo, abra
+`CORRIGIR_AUDIO_SPOTIFY_NO_WINDOWS.cmd`. Além de atualizar os helpers dos
+ícones, aplica explicitamente a saída privada HDMI. O build e os testes
+ocorrem antes de fechar a aplicação existente. Dependências de áudio ausentes
+são somente baixadas, verificadas e extraídas no diretório do usuário; não
+são instaladas no sistema. É necessário acesso aos repositórios APT já
+configurados e ao GitHub. Não solicita a chave Spotify novamente.
+
+O processo pode emitir um tom curto e baixo, abre o aplicativo e preserva
+a versão anterior. Confirme música audível e a alternância com IPTV. A ação
+**Voltar a versão anterior** do ícone também desabilita o perfil de áudio
+privado após parar seus processos gerenciados. Arquivos, limites, remoção e
+diagnóstico estão em [SPOTIFY.md](SPOTIFY.md#saída-hdmi-privada).

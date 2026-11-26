@@ -130,3 +130,19 @@ fontes públicas/identificador da release, verifica o manifesto e constrói em
 diretório novo. O launcher seleciona o build via ponteiro privado atômico,
 com o anterior registrado para rollback. O pacote não redistribui Soloist e
 a configuração existente permanece no Pi. Nenhum serviço de boot é criado.
+
+## Áudio privado opcional do Soloist
+
+`audio_backend.py` cria uma instância PulseAudio não daemonizada, filha do
+launcher Soloist, com cookie/socket privados e apenas saída ALSA vc4hdmi.
+O perfil é separado da chave. Variáveis Pulse e bibliotecas privadas existem
+somente no ambiente desses filhos. O supervisor encerra/recolhe o servidor
+com o cliente. O provisionamento usa binários existentes ou download APT com
+hash e extração local, sem instalação global ou scripts de manutenção.
+
+Com o marcador de perfil habilitado, main usa `SpotifyAudioFocus`: uma única
+requisição `audio-yield` assíncrona via worker encerra o grupo gerenciado
+antes de chamar TvPlayer. O canal mais recente substitui pedidos anteriores;
+Back/Home cancelam imediatamente, prazo de 8 s devolve erro ao usuário.
+O gateway não inicia Soloist para liberar áudio e recusa encerrar cliente
+externo. Nenhuma propriedade, referência ou ciclo de pipeline GStreamer mudou.

@@ -305,7 +305,8 @@ A chave fornecida na conversa não foi gravada no projeto, exemplos ou testes.
 - [x] Chave Soloist configurada pelo usuário no prompt oculto, conforme log enviado.
 - [x] Dispositivo Raspberry TV descoberto e selecionado no Spotify Connect,
   conforme captura enviada pelo usuário em 25/11/2026.
-- [ ] Versão e validade do build Soloist registradas por log do Raspberry.
+- [x] Versão Soloist 1.4.0.14/build 1795608227 (20261125), linux/aarch64,
+  registrada na coleta de 26/11. Isso não certifica a validade futura do SDK.
 - [ ] Reprodução efetiva e áudio audível pelo dispositivo de saída do Raspberry.
 - [ ] OAuth real, playlists da conta e controle de dispositivo real.
 
@@ -334,3 +335,59 @@ O resumo registra somente o observado; não classifica pausas como falhas
 de áudio sem evidência. Ausência de fluxos na API Pulse não exclui clientes
 PipeWire nativos. O relato deve ser combinado com os sockets/saídas e estado
 do processo para decidir a correção. Não colete argv ou logs brutos do SDK.
+
+## Saída HDMI privada
+
+A coleta válida de 26/11 mostrou o mesmo PID Soloist durante a transferência:
+playing/inativo em outro dispositivo, buffering e depois paused/ativo no
+Raspberry. Não havia sockets PipeWire ou PulseAudio acessíveis em
+`/run/user/1001`. ALSA enumerou Headphones e vc4hdmi. A hipótese do áudio no
+controle não foi comprovada; existe um requisito ausente na rota de áudio
+do Soloist. A IPTV usa diretamente ALSA HDMI e tem som confirmado pelo usuário.
+
+No ZIP central extraído, execute `CORRIGIR_AUDIO_SPOTIFY_NO_WINDOWS.cmd`.
+A entrega avulsa usa o nome `Corrigir-Audio-Spotify.cmd`, ao lado dos demais
+helpers. A única interação de terminal é a autenticação SSH normal, se pedida.
+Primeiro o atualizador compila e testa em uma nova pasta. Depois prepara uma
+instância PulseAudio privada, com saída explícita
+`plughw:CARD=vc4hdmi,DEV=0`, sem módulos Bluetooth ou descoberta de outros sinks.
+O SDK recebe essa saída apenas no ambiente do seu processo.
+
+Se pulseaudio/pactl/paplay já existem, seus binários são reutilizados. Caso
+contrário, APT somente simula dependências e baixa os pacotes dos índices
+existentes; o helper confere SHA-256, extrai binários/bibliotecas/licenças em
+diretório privado e não executa dpkg install ou scripts de pacotes. Limites:
+32 pacotes, 80 MiB comprimidos/extraídos, timeouts por operação. Não há sudo,
+alteração de serviços, configurações de áudio globais ou autostart de boot.
+Índices APT indisponíveis/desatualizados interrompem a correção com erro.
+
+Antes de ativar a versão nova, fecha a UI e o cliente Soloist identificado
+do usuário, preservando chave e sessão Connect. Envia um tom de 0,25 s,
+amplitude 3%, com sink a 35%; isso verifica envio, não audição. Falha restaura
+o perfil anterior. Depois abra Spotify e selecione Raspberry TV; confirme
+som, pausa/retomada e volume. Abrir um canal IPTV encerra primeiro o cliente
+gerenciado e seu servidor privado, sem bloquear o SDL; há cancelamento e
+prazo de 8 s. Voltar a APLICATIVOS inicia o cliente sob demanda, sem autoplay.
+
+Arquivos gerenciados, nos padrões XDG deste usuário:
+
+| Dado | Caminho |
+|---|---|
+| Perfil de áudio, sem chave Spotify | `/home/balancerec/.config/raspberry-tv/spotify/audio.private.json` |
+| Marcador para liberação antes da IPTV | `/home/balancerec/.config/raspberry-tv/spotify/audio-focus-v1` |
+| Dependências extraídas, quando necessárias | `/home/balancerec/.local/share/raspberry-tv/audio-runtime/` |
+| Socket, cookie e configuração privados | `/run/user/1001/raspberry-tv-audio/` |
+
+Diretórios são 0700, cookie/perfil 0600. Se XDG_RUNTIME_DIR não existir, o
+runtime usa XDG_STATE_HOME ou `~/.local/state`; caminhos Unix longos usam
+`/tmp/raspberry-tv-audio-<uid>`, também privado. O servidor só aceita socket
+Unix autenticado, sem porta TCP. Não há prioridade realtime ou overclock.
+
+**Rollback:** no menu do ícone Raspberry TV do Pi, escolha **Voltar a versão
+anterior**. O launcher para somente o cliente/grupo gerenciado, desabilita
+o perfil privado e seleciona o build anterior. Se detectar cliente externo,
+preserva-o e informa o impedimento. A sessão e a chave Spotify permanecem.
+Para remover dependências privadas depois de parar o Spotify, remova apenas
+`audio-runtime/` identificado pelo `managed.txt` deste aplicativo. Nenhum
+pacote do sistema precisa ser desinstalado. Confirmação de HDMI audível e
+regressão TV/Spotify no Pi continuam pendentes.
