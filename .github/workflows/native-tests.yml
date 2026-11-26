@@ -28,9 +28,16 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import base64
           from PIL import Image
           for frame in Path('build-ci/media-ui').glob('*.bmp'):
               Image.open(frame).save(frame.with_suffix('.png'))
+          # Public fixture only. Also expose the real render through the logs
+          # so visual review works when artifact URLs cannot be opened locally.
+          frame = Path('build-ci/media-ui/spotify-playing.png')
+          encoded = base64.b64encode(frame.read_bytes()).decode('ascii')
+          for offset in range(0, len(encoded), 4096):
+              print('RTV_UI_FRAME', offset, encoded[offset:offset + 4096])
           PY
       - uses: actions/upload-artifact@v4
         with:
