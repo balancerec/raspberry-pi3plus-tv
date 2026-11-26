@@ -25,8 +25,20 @@ Consulte [o relatório real](docs/TEST_REPORT.md) e [o checklist](docs/RELEASE_C
 - V4L2 H.264 preferido quando disponível; glimagesink/VideoOverlay preservado.
 - OSD em janela X11 separada, sem SDL desenhar no drawable do vídeo.
 - Navegação por controle, reconexão por eventos SDL e teclado simultâneo.
-- Seis módulos preservados. Biblioteca/aplicativos indicam claramente que
-  estão fora do escopo; não oferecem serviços fictícios.
+- Seis módulos preservados. Biblioteca continua fora do escopo. Na branch
+  Spotify, APLICATIVOS oferece controle Soloist local e Web API opcional.
+
+## Spotify opcional nesta branch
+
+`feature/native-spotify-integration` adiciona funções nativas em APLICATIVOS:
+controle Soloist local (estado, fila, pausa/retomada, faixas e volume) e Web API
+opcional (playlists, faixas e dispositivos da conta, OAuth PKCE). O Soloist
+oficial é instalado separadamente pelo usuário; nenhuma chave ou binário
+Spotify é distribuído. [Configuração, comandos e limites](docs/SPOTIFY.md).
+
+Esta integração passou por testes offline, mas **ainda precisa de build ARM64,
+pareamento, login e áudio audível no Raspberry**. Os 12/12 testes anteriores
+no Pi referem-se à RC1 antes da integração. Nenhum serviço foi modificado.
 
 ## Compilar e iniciar manualmente no Raspberry
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## Não lançado — integração Spotify — 2026-11-25
+
+- Funções Soloist oficiais para reprodução local/estado/fila/controle,
+  configuração privada por entrada oculta e launcher manual sem serviços.
+- Web API opcional: OAuth PKCE, renovação de token, perfil, playlists/faixas,
+  busca, dispositivos, reprodução, pausa, faixas e volume; endpoints 2026.
+- Painel Spotify controller-first em APLICATIVOS com navegação paginada,
+  worker serializado, cancelamento, prazos e mensagens sem segredos.
+- Testes offline de autenticação/API/armazenamento/Soloist e C++ de protocolo,
+  navegação e concorrência. Adaptador POSIX e áudio físico pendentes no Pi.
+- Código, histórico e pacote sem chave real; `.gitignore` protege arquivos
+  privados. Download do cliente oficial e ativação de áudio não automatizados.
+
+
 ## 1.0.0-rc1 — 2026-11-24 — candidata à validação
 
 ### Implementado

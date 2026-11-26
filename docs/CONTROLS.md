@@ -35,3 +35,17 @@ de estabilidade, conforme correção validada na v0.5.
 
 Os testes simulam o estado normalizado/desconexão e wrap do relógio SDL.
 Reconexão Bluetooth física, PS/Guide e mapeamento real da RC1 estão pendentes.
+
+## APLICATIVOS / Spotify nesta branch
+
+D-pad seleciona; esquerda/direita percorrem seis linhas; × executa a ação da
+linha. No modo local Soloist: estado, fila, ativar/desativar dispositivo,
+pausa/retomada, próxima/anterior e volume ±5%. × em uma faixa da fila inicia
+a faixa. A última ação alterna para o modo Web API opcional, com playlists e
+dispositivos da conta. Nesse modo, □ em playlist lista as faixas; × reproduz
+no dispositivo ativo ou seleciona um dispositivo sem autoplay.
+
+○ retorna e cancela a espera; PS volta ao início; Options mostra ajuda
+contextual. Esses botões não desfazem ações já aceitas pelo Spotify nem pausam
+música automaticamente. Use a linha Pausar antes de abrir IPTV quando quiser
+interromper a música. [Configuração e requisitos](SPOTIFY.md).

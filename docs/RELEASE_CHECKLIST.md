@@ -61,3 +61,15 @@ recebe aprovação física por inferência.
 - [ ] Limitações de alimentação/desempenho aceitas com medições reais.
 - [ ] Investigar travamentos relatados; subtensão é hipótese, não diagnóstico exclusivo comprovado.
 - [ ] Release 1.0 final aprovada. Até lá, manter o identificador RC1.
+
+## Adicional Spotify — branch separada, não aprovada no hardware
+
+- [x] Base RC1 preservada; nenhum merge no main ou instalação no Pi.
+- [x] Testes portáveis existentes executados antes da alteração: 9/9 PASS.
+- [x] Testes offline Spotify e worker/protocolo/navegação C++ executados.
+- [x] Credencial real ausente de fonte, testes, exemplos e arquivos Git.
+- [x] Configuração privada e instruções de instalação/execução/rollback preparadas.
+- [ ] Build ARM64 da interface alterada e CTest completo, incluindo processo POSIX.
+- [ ] Permissões POSIX, cliente Soloist real, pareamento e áudio HDMI audível.
+- [ ] OAuth real opcional, playlists da conta e dispositivo real.
+- [ ] Regressão física IPTV/Full HD/DS4/OSD após esta integração.

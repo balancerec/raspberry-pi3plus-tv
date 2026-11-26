@@ -87,3 +87,20 @@ vídeo HDMI, áudio audível ou decodificação H.264 do hardware.
 Use o launcher para logs normais sem debug de URLs. Ao abrir um chamado,
 inclua somente estado/categoria do erro, versões de plugins e a amostra de
 saúde; remova caminhos privados, tokens e credenciais.
+
+## Spotify opcional
+
+- Soloist ausente/build expirado: obtenha o build atual ARM64 no link oficial
+  de [SPOTIFY.md](SPOTIFY.md), fora do repositório. Não há download automático.
+- Nenhum estado local: inicie `bash scripts/spotify.sh soloist-run` em outro
+  terminal e selecione Raspberry TV em um Spotify da mesma rede.
+- Soloist sem som: ele usa PipeWire ou PulseAudio, enquanto o IPTV pode usar
+  ALSA. `--audio-sink alsasink` do IPTV não configura a saída Soloist. Verifique
+  `wpctl status`/`pactl info` se disponíveis. Não mudamos serviços globais.
+- Chave Soloist não autentica Web API: são interfaces distintas. Consultar
+  playlists exige Client ID e OAuth PKCE opcionais; comandos Soloist não.
+- Web API 403: confira Premium, scopes e usuários permitidos no Developer.
+  404: confira conteúdo/dispositivo. 429: aguarde o prazo mostrado; não há
+  reconexões automáticas infinitas. Sessão revogada: execute login novamente.
+- Não publique arquivos privados, tokens, argv do daemon ou logs brutos.
+  A UI recebe apenas estado/metadados e mensagens sanitizadas.

@@ -171,3 +171,30 @@ checkout Git dessa branch:
 ```bash
 git push -u origin feature/native-tv-release-v10
 ```
+
+## Integração Spotify opcional
+
+Esta branch adicional requer Python 3.9 ou superior para o helper e os novos
+testes. Use `python3 --version` para conferir. Compile/teste em um diretório
+novo, com a mesma resolução e sem alterar a instalação RC1 já validada:
+
+```bash
+cmake -S native -B build-native-spotify -DCMAKE_BUILD_TYPE=Release &&
+cmake --build build-native-spotify --parallel 1 &&
+ctest --test-dir build-native-spotify --output-on-failure
+```
+
+Para executar esse build isolado, defina explicitamente o binário no launcher:
+
+```bash
+DISPLAY=:0 RASPBERRY_TV_BIN="$PWD/build-native-spotify/raspberry-tv-native" \
+  bash scripts/run-native.sh --fullscreen --playlist "$HOME/Playlist_VLC.m3u"
+```
+
+O script informa ao binário onde está o helper Python. A instalação CMake
+inclui apenas o helper da nossa aplicação; `package-arm64.sh` inclui seu
+launcher e documentação, sem estado XDG, chave ou binário Soloist. Download,
+pareamento e saída de áudio local exigem a preparação de [SPOTIFY.md](SPOTIFY.md).
+O Client ID Web API é opcional para consulta de playlists; Soloist usa sua
+chave própria. Nenhum autostart é instalado. Para rollback, encerre a UI e o
+launcher Soloist, depois execute novamente o checkout RC1 anterior.

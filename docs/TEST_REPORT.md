@@ -184,3 +184,59 @@ No worktree isolado do Pi, rode diagnóstico, build limpo/CTest completo e
 RELEASE_CHECKLIST.md com fonte atual, sem estresse prolongado. Registre
 vídeo visível, áudio audível, reconexão DS4, retorno ao menu e ausência de
 criticals. Só então marque itens pendentes e considere remover RC1 do nome.
+# Integração Spotify — validação adicional de 25/11/2026
+
+Esta seção refere-se à branch `feature/native-spotify-integration`, derivada
+da RC1 publicada `e84c664`. As evidências anteriores no Pi permanecem válidas
+somente para a versão anterior; não aprovam a nova interface por inferência.
+
+| Verificação executada neste host Windows | Resultado real |
+|---|---|
+| CTest portátil antes de alterações | 9/9 PASS, 1,09 s |
+| Build limpo `build-spotify-final`, MSVC/CMake Release, `BUILD_NATIVE_APP=OFF` | PASS, sem erros; avisos MSVC preexistentes em settings.cpp |
+| CTest após integração | 11/11 PASS, 2,08 s |
+| Suíte Python Spotify (incluída em um teste CTest) | 39 casos: 38 PASS, 1 SKIP POSIX |
+| Regressão do servidor Python legado | 9/9 PASS |
+
+Logs locais: `build-spotify-final-configure.log`,
+`build-spotify-final-compile.log` e `build-spotify-final-ctest.log` na raiz do
+checkout. Esses logs não são versionados nem contêm credenciais de conta.
+
+Spotify: PKCE/RFC7636, estado/callback inválido, armazenamento atômico,
+corrupção, exclusão entre processos, refresh/rotação e limite de uma renovação
+em 401; erros 403/404/503, cooldown persistente em 429, endpoints/paginação,
+UTF-8, payloads de comandos e ausência de tokens na saída. Soloist: loopback
+obrigatório, arquivos de discovery, estado/fila no formato oficial, comandos
+sem chave em ctl, volume relativo, entrada oculta, build expirado e interrupção
+do launcher. Respostas e credenciais são artificiais; nenhum login, pareamento
+ou comando autenticado real foi executado.
+
+No C++ foram executados protocolo/limites, estados, navegação de APLICATIVOS,
+seleção de backend, manutenção/limpeza de metadados, serialização de comandos,
+cancelamento/descarte de resposta antiga, falha sanitizada e shutdown do worker.
+Os nove testes anteriores de parser, entrada, persistência, playback e filas
+continuam passando. Não alteramos o ciclo de vida de GStreamer nesta integração.
+
+Pendentes: build Linux/ARM64 da UI alterada; teste do adaptador POSIX real,
+permissões 0700/0600 e CTest completo do destino (15 testes cadastrados nessa
+configuração, ainda não executados). O workflow Linux está preparado no Git,
+mas não foi executado nesta sessão. Não há SDK SDL2/GStreamer Linux neste
+host, acesso SSH operacional ou cliente Soloist disponível para validar som.
+
+Cliente Soloist oficial não é redistribuído. Precisa ser instalado e pareado
+pelo usuário; depende de PipeWire/PulseAudio no Linux. O diagnóstico anterior
+de PipeWire ausente no DietPi continua relevante. Não modificamos servidores
+de áudio nem serviços para contorná-lo. Não certificamos áudio pela alteração
+de propriedade, por resposta da API ou por teste com mock.
+
+Chave real fornecida na conversa não foi gravada em fonte, teste, exemplo,
+comando, log ou configuração desta entrega. Código e pacote são preparados
+sem credenciais. Configuração real deverá ser feita com o prompt oculto do
+launcher, em arquivo privado XDG fora do checkout. Limitação de argv da CLI
+oficial e demais requisitos: [SPOTIFY.md](SPOTIFY.md).
+
+Não foram medidos consumo de memória, CPU, FPS, temperatura ou alimentação
+após esta mudança. HDMI 1080p, DS4, IPTV e áudio exigem regressão física com o
+novo build. Nenhuma atualização/instalação de release foi aplicada ao Pi.
+
+---
