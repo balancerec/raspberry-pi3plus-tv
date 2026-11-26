@@ -45,6 +45,11 @@ a faixa. A última ação alterna para o modo Web API opcional, com playlists e
 dispositivos da conta. Nesse modo, □ em playlist lista as faixas; × reproduz
 no dispositivo ativo ou seleciona um dispositivo sem autoplay.
 
+A linha de pausa/retomada local alterna com × após consultar o estado do
+Soloist. Depois de pausar, × na mesma linha retoma. O cabeçalho aguarda a
+confirmação do estado; falha ou cancelamento não mantém “Tocando” antigo.
+Confirmação de estado não comprova áudio na saída física.
+
 ○ retorna e cancela a espera; PS volta ao início; Options mostra ajuda
 contextual. Esses botões não desfazem ações já aceitas pelo Spotify nem pausam
 música automaticamente. Use a linha Pausar antes de abrir IPTV quando quiser

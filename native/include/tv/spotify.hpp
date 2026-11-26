@@ -61,6 +61,8 @@ class SpotifyPanel {
 public:
     SpotifyPanel();
     void useLocal(bool local);
+    void requestStarted(const std::string& command);
+    void requestCancelled();
     static constexpr std::size_t ControlRows = 11;
     void accept(const SpotifyReply&);
     const std::vector<SpotifyMenuRow>& rows() const { return rows_; }
@@ -71,6 +73,8 @@ private:
     std::vector<SpotifyMenuRow> rows_;
     std::optional<SpotifyReply> page_;
     bool local_ = true;
+    bool confirming_ = false;
+    std::string playback_ = "unknown";
     std::string message_ = "Soloist: configure e inicie pelo terminal; consulte docs/SPOTIFY.md.", nowPlaying_ = "Spotify Soloist - dispositivo Raspberry TV";
     void rebuild();
 };

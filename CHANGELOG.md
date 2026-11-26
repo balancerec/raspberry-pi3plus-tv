@@ -2,6 +2,11 @@
 
 ## Não lançado — integração Spotify — 2026-11-25
 
+- Correção de pausa/retomada na mesma linha e leitura do estado após comandos
+  locais; cabeçalho deixa de preservar “Tocando” desatualizado durante falhas.
+- Preferência de saída por processo para Soloist, com chave preservada, e
+  diagnóstico de áudio sem leitura de credenciais ou alterações de serviços.
+  Ausência de som relatada pelo usuário ainda depende do diagnóstico no Pi.
 - Funções Soloist oficiais para reprodução local/estado/fila/controle,
   configuração privada por entrada oculta e launcher manual sem serviços.
 - Web API opcional: OAuth PKCE, renovação de token, perfil, playlists/faixas,

@@ -241,20 +241,21 @@ int main(int argc, char** argv) {
             if(model.view()==raspberry_tv::View::Apps && !model.showHelp()) {
                 if(action==Action::Confirm || action==Action::Details) {
                     auto arguments=spotifyPanel.activate(model.selectedRow(),action==Action::Details);
+                    const auto operation=arguments.empty()?std::string{}:arguments.front();
                     if(arguments.empty())model.setStatusMessage("Acao indisponivel; Quadrado lista faixas de uma playlist");
                     else if(arguments[0]=="use-local" || arguments[0]=="use-web") {
                         spotify.cancel();spotifyPanel.useLocal(arguments[0]=="use-local");
                         model.setAppRowCount(spotifyPanel.rows().size(),true);
                     }
                     else if(!spotify.submit(std::move(arguments)))model.setStatusMessage("Spotify ocupado; O cancela e volta");
-                    else model.setStatusMessage("Solicitacao Spotify em andamento");
+                    else {spotifyPanel.requestStarted(operation);model.setStatusMessage("Solicitacao Spotify em andamento");}
                     continue;
                 }
             }
             const auto previousView=model.view();
             if(action==Action::Confirm && model.selectedChannel() && !model.showHelp() && !model.showDetails() && !loadPending)beginPlayback();
             else model.dispatch(action);
-            if(previousView==raspberry_tv::View::Apps && model.view()!=previousView)spotify.cancel();
+            if(previousView==raspberry_tv::View::Apps && model.view()!=previousView) {spotify.cancel();spotifyPanel.requestCancelled();}
         }
         if(auto reply=spotify.take()) {
             spotifyPanel.accept(*reply);model.setAppRowCount(spotifyPanel.rows().size());

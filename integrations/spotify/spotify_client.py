@@ -453,9 +453,14 @@ class Soloist:
     No download, service install or automatic start. Controls use the official
     ctl command and a loopback endpoint, so we do not implement a second player.
     """
-    def __init__(self, store: Store, runner=None):
+    def __init__(self, store: Store, runner=None, clock=time.monotonic, sleep=time.sleep):
         self.store = store
-        self.runner = runner or self._bounded_run
+        self.clock, self.sleep = clock, sleep
+        self.deadline = clock() + 12
+        self.runner = runner or self._run_with_deadline
+
+    def _run_with_deadline(self, arguments):
+        return self._bounded_run(arguments, min(8, self.deadline - self.clock()))
 
     def binary(self):
         configured = os.environ.get("SOLOIST_BIN")
@@ -471,12 +476,14 @@ class Soloist:
         return private_directory(data), private_directory(cache)
 
     @staticmethod
-    def _bounded_run(arguments):
+    def _bounded_run(arguments, timeout=8):
         # No shell and no secret in ctl argv. Bound time, disk output and memory.
+        if timeout <= 0:
+            raise SpotifyError("network", "Tempo limite da operacao Soloist.")
         with tempfile.TemporaryFile() as output:
             process = subprocess.Popen(arguments, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.DEVNULL)
             try:
-                deadline = time.monotonic() + 8
+                deadline = time.monotonic() + timeout
                 while process.poll() is None:
                     if time.monotonic() >= deadline or os.fstat(output.fileno()).st_size > MAX_RESPONSE:
                         raise SpotifyError("network", "Soloist nao respondeu dentro do limite.")
@@ -492,6 +499,8 @@ class Soloist:
                 process.wait()
 
     def ctl(self, arguments, json_output=False):
+        if self.clock() >= self.deadline:
+            raise SpotifyError("network", "Tempo limite da operacao Soloist.")
         binary = self.binary()
         data, _ = self.directories()
         try:
@@ -529,20 +538,31 @@ class Soloist:
 
     def run_foreground(self):
         binary = self.binary()
-        key = self.store.read("soloist.private.json").get("api_key", "")
+        configuration = self.store.read("soloist.private.json")
+        key = configuration.get("api_key", "")
         if not isinstance(key, str) or not re.fullmatch(r"spak_[A-Za-z0-9_-]{15,507}", key):
             raise SpotifyError("setup", "Configure a chave sem exibi-la: bash scripts/spotify.sh soloist-configure.")
         data, cache = self.directories()
         arguments = [binary, "--device-name", "Raspberry TV", "--api-key", key,
                      "--data-dir", str(data), "--cache-dir", str(cache), "--cache-size", "100",
                      "--initial-volume", "35", "--ws", "127.0.0.1:0"]
-        device = self.store.read("soloist.private.json").get("pipewire_device", "")
+        device = configuration.get("pipewire_device", "")
         if isinstance(device, str) and device:
             arguments += ["--pipewire-device", device]
+        environment = os.environ.copy()
+        if os.name == "posix":
+            runtime = Path("/run/user") / str(os.getuid())
+            if not environment.get("XDG_RUNTIME_DIR") and runtime.is_dir() and runtime.stat().st_uid == os.getuid():
+                environment["XDG_RUNTIME_DIR"] = str(runtime)
+            if not environment.get("DBUS_SESSION_BUS_ADDRESS") and (runtime / "bus").is_socket():
+                environment["DBUS_SESSION_BUS_ADDRESS"] = "unix:path=" + str(runtime / "bus")
+        pulse_sink = configuration.get("pulse_sink", "")
+        if isinstance(pulse_sink, str) and pulse_sink:
+            environment["PULSE_SINK"] = pulse_sink
         print("Soloist em primeiro plano. Selecione Raspberry TV no Spotify da mesma rede. Ctrl+C encerra.", flush=True)
         # Official Soloist currently accepts the key as an argv option. Never
         # print argv or exceptions containing it. See the documented limitation.
-        process = subprocess.Popen(arguments, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        process = subprocess.Popen(arguments, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=environment)
         try:
             code = process.wait()
         except KeyboardInterrupt:
@@ -576,18 +596,63 @@ class Soloist:
                 artists.append(clean_label(value.get("name")))
         return name, clean_label(", ".join(artists))
 
+    def playback_records(self, data, message, code="ready"):
+        name, artists = self.entity(data.get("item"))
+        state = data.get("status")
+        if state not in ("idle", "playing", "paused", "buffering"):
+            raise SpotifyError("response", "Estado de reproducao Soloist invalido.")
+        volume = data.get("volume")
+        volume = int(volume) if type(volume) in (int, float) and 0 <= volume <= 100 else -1
+        return [("status", code, message),
+                ("playback", state, name, artists, "Raspberry TV / Soloist", str(volume))]
+
+    def observe_after_command(self, predicate=None):
+        # command_result only acknowledges dispatch. Read actual state without
+        # replaying the control command. All calls share the operation deadline.
+        latest = None
+        for delay in (0, 0.15, 0.35, 0.6, 1.0):
+            if self.clock() + delay >= self.deadline:
+                break
+            if delay:
+                self.sleep(delay)
+            latest = self.ctl(["now"], True)
+            if latest.get("status") not in ("idle", "playing", "paused", "buffering"):
+                raise SpotifyError("response", "Estado de reproducao Soloist invalido.")
+            if predicate is None or predicate(latest):
+                return latest, True
+        return latest, False
+
+    def resume(self, value="", before=None):
+        if value:
+            require_uri(value)
+        before = before if before is not None else self.ctl(["now"], True)
+        if before.get("status") not in ("idle", "playing", "paused", "buffering"):
+            raise SpotifyError("response", "Estado de reproducao Soloist invalido.")
+        if before.get("is_active") is False:
+            self.ctl(["activate"])
+            active, confirmed = self.observe_after_command(lambda state: state.get("is_active") is True)
+            if not confirmed:
+                return self.playback_records(active or before,
+                    "Raspberry TV ainda nao ficou ativo no Spotify. Selecione o dispositivo e tente novamente.", "unavailable")
+        self.ctl(["play", *([value] if value else [])])
+        state, confirmed = self.observe_after_command(
+            lambda state: state.get("status") == "playing" and state.get("is_active") is not False)
+        if confirmed:
+            return self.playback_records(state, "Soloist confirmou reproducao. Verifique o som na TV.")
+        if state and state.get("status") == "idle":
+            message = "Sem faixa pronta para retomar. Escolha uma musica no Spotify ou na fila local."
+        elif state and state.get("status") == "buffering":
+            message = "Soloist ainda esta carregando a musica. Atualize o estado em instantes."
+        else:
+            message = "Retomada enviada, mas Soloist ainda nao confirmou reproducao. Confira o estado e as permissoes da conta."
+        if state:
+            return self.playback_records(state, message, "unavailable")
+        return [("status", "network", "Comando enviado; nao foi possivel confirmar o estado Soloist.")]
+
     def records(self, command, value=""):
         command = command.removeprefix("soloist-")
         if command == "status":
-            data = self.ctl(["now"], True)
-            name, artists = self.entity(data.get("item"))
-            state = data.get("status", "idle")
-            if state not in ("idle", "playing", "paused", "buffering"):
-                state = "idle"
-            volume = data.get("volume")
-            volume = int(volume) if isinstance(volume, (int, float)) and 0 <= volume <= 100 else -1
-            return [("status", "ready", "Soloist local: estado recebido. Confirme o audio no Raspberry."),
-                    ("playback", state, name, artists, "Raspberry TV / Soloist", str(volume))]
+            return self.playback_records(self.ctl(["now"], True), "Estado Soloist atualizado.")
         if command == "queue":
             data = self.ctl(["queue", "20"], True)
             entries = []
@@ -606,21 +671,48 @@ class Soloist:
                 entries.append(("row", kind, uri, name, artists, "1"))
             return [("status", "ready", "Fila local; X inicia a faixa selecionada no Soloist."),
                     ("page", "queue", "0", "-1", str(len(entries)), ""), *entries]
+        try:
+            return self.control_records(command, value)
+        except SpotifyError as exc:
+            # Never turn a readback failure into a claim that playback changed.
+            if exc.code in ("network", "response"):
+                return [("status", exc.code, "Operacao Soloist sem confirmacao de estado. Atualize o estado local.")]
+            raise
+
+    def control_records(self, command, value=""):
+        if command == "toggle":
+            before = self.ctl(["now"], True)
+            if before.get("status") not in ("playing", "paused", "idle", "buffering"):
+                raise SpotifyError("response", "Estado de reproducao Soloist invalido.")
+            if before["status"] not in ("playing", "buffering"):
+                return self.resume(before=before)
+            command = "pause"
+        if command in ("play", "resume"):
+            return self.resume(value if command == "play" else "")
+        predicate = None
         if command in ("volume-up", "volume-down"):
             data = self.ctl(["now"], True)
             current = data.get("volume")
-            if not isinstance(current, (int, float)) or not 0 <= current <= 100:
+            if type(current) not in (int, float) or not 0 <= current <= 100:
                 raise SpotifyError("unavailable", "Volume Soloist indisponivel.")
-            self.ctl(["volume", str(max(0, min(100, int(current) + (5 if command == "volume-up" else -5))))])
-        elif command in ("play", "resume"):
-            if value:
-                require_uri(value)
-            self.ctl(["play", *([value] if value else [])])
+            target = max(0, min(100, int(current) + (5 if command == "volume-up" else -5)))
+            self.ctl(["volume", str(target)])
+            predicate = lambda state: type(state.get("volume")) in (int, float) and abs(state["volume"] - target) < 1
         elif command in ("pause", "next", "previous", "activate", "deactivate"):
             self.ctl(["prev" if command == "previous" else command])
+            if command == "pause":
+                predicate = lambda state: state.get("status") in ("paused", "idle")
+            elif command in ("activate", "deactivate"):
+                predicate = lambda state: state.get("is_active") is (command == "activate")
         else:
             raise SpotifyError("request", "Comando Soloist invalido.")
-        return [("status", "ready", "Comando local aceito. Atualize o estado e confirme o audio no Raspberry.")]
+        state, confirmed = self.observe_after_command(predicate)
+        if not state:
+            return [("status", "network", "Comando enviado; nao foi possivel confirmar o estado Soloist.")]
+        message = "Estado Soloist atualizado apos o comando."
+        if not confirmed:
+            message = "Comando enviado, mas a alteracao ainda nao foi confirmada pelo Soloist."
+        return self.playback_records(state, message, "ready" if confirmed else "unavailable")
 
 
 def page_rows(kind, data, offset, parent=""):
@@ -722,10 +814,12 @@ def emit(records):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Raspberry TV: Spotify Connect com OAuth PKCE; nunca recebe segredos por argumento.")
-    parser.add_argument("command", choices=("configure", "login", "logout", "profile", "playlists", "items", "search", "devices", "status", "play", "resume", "pause", "next", "previous", "volume", "volume-up", "volume-down", "transfer", "soloist-configure", "soloist-run", "soloist-status", "soloist-queue", "soloist-play", "soloist-resume", "soloist-pause", "soloist-next", "soloist-previous", "soloist-volume-up", "soloist-volume-down", "soloist-activate", "soloist-deactivate"))
+    parser.add_argument("command", choices=("configure", "login", "logout", "profile", "playlists", "items", "search", "devices", "status", "play", "resume", "pause", "next", "previous", "volume", "volume-up", "volume-down", "transfer", "soloist-configure", "soloist-audio", "soloist-run", "soloist-status", "soloist-queue", "soloist-play", "soloist-resume", "soloist-toggle", "soloist-pause", "soloist-next", "soloist-previous", "soloist-volume-up", "soloist-volume-down", "soloist-activate", "soloist-deactivate"))
     parser.add_argument("value", nargs="?", default="")
     parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--pipewire-device", default=None)
+    parser.add_argument("--pulse-sink", default=None)
     args = parser.parse_args(argv)
     store = Store()
     interactive = args.command in ("configure", "login", "soloist-configure", "soloist-run")
@@ -736,6 +830,21 @@ def main(argv=None):
             Soloist(store).run_foreground()
             return 0
         with store.locked():
+            if args.command == "soloist-audio":
+                settings = store.read("soloist.private.json")
+                changed = False
+                for field, value in (("pipewire_device", args.pipewire_device), ("pulse_sink", args.pulse_sink)):
+                    if value is None:
+                        continue
+                    if len(value) > 256 or (value and not re.fullmatch(r"[A-Za-z0-9_.:-]+", value)):
+                        raise SpotifyError("request", "Use o identificador de saida informado pelo diagnostico de audio.")
+                    settings[field] = value
+                    changed = True
+                if changed:
+                    store.write("soloist.private.json", settings)
+                emit([("status", "ready", "Saida do Soloist salva. Reinicie somente o Soloist para aplicar; a chave foi preservada." if changed else
+                       "Use --pipewire-device NOME_OU_ID e/ou --pulse-sink NOME. Vazio restaura o padrao para esse campo.")])
+                return 0
             if args.command == "soloist-configure":
                 with warnings.catch_warnings():
                     warnings.simplefilter("error", getpass.GetPassWarning)
@@ -746,7 +855,9 @@ def main(argv=None):
                 if not re.fullmatch(r"spak_[A-Za-z0-9_-]{15,507}", key):
                     raise SpotifyError("setup", "Formato de chave Soloist invalido.")
                 device = input("No PipeWire de saida (vazio: padrao do usuario): ").strip()
-                store.write("soloist.private.json", {"api_key": key, "pipewire_device": device})
+                configuration = store.read("soloist.private.json")
+                configuration.update({"api_key": key, "pipewire_device": device})
+                store.write("soloist.private.json", configuration)
                 print("Chave Soloist salva somente em arquivo privado fora do projeto.")
                 return 0
             if args.command == "configure":

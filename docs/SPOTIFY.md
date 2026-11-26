@@ -73,6 +73,44 @@ ativamos ou reconfiguramos um servidor de áudio automaticamente. Verificações
 curtas, sem mudar serviços: `wpctl status` e/ou `pactl info`, se disponíveis.
 Um erro nesses comandos deve ser resolvido antes do teste audível Soloist.
 
+### Diagnosticar ausência de som
+
+Com uma faixa selecionada e o Soloist em execução, rode no Raspberry:
+
+```bash
+cd "$HOME/raspberry-tv-spotify"
+python3 scripts/diagnose-spotify.py
+```
+
+O diagnóstico consulta saídas, mute, volume, fluxos e estado local. Não lê a
+chave, sessões privadas ou argumentos dos processos. Não altera configurações.
+Em 25/11/2026, o usuário confirmou ausência de som; a saída efetiva ainda
+precisa ser identificada. O texto “Tocando” informa o estado do provedor,
+sem comprovar som audível na TV.
+
+Depois de identificar o nó real, é possível salvar uma saída apenas para o
+Soloist, preservando a chave e o pareamento. Substitua o identificador do
+exemplo pelo resultado do diagnóstico:
+
+```bash
+bash scripts/spotify.sh soloist-audio --pipewire-device NOME_OU_ID_DO_NO
+```
+
+Para o fallback PulseAudio, a preferência do processo pode ser salva com:
+
+```bash
+bash scripts/spotify.sh soloist-audio --pulse-sink NOME_DO_SINK
+```
+
+Reinicie somente o launcher Soloist com Ctrl+C e `bash scripts/spotify.sh
+soloist-run`. A preferência Pulse usa `PULSE_SINK` no ambiente do processo
+filho, conforme o [manual PulseAudio](https://manpages.debian.org/trixie/pulseaudio/pulseaudio.1.en.html).
+Isso não altera a saída padrão do sistema e não força o backend Pulse quando
+PipeWire está disponível. Nomes estáveis são preferíveis a IDs transitórios.
+Para voltar ao padrão do usuário, salve `--pipewire-device '' --pulse-sink ''`.
+O launcher também preenche o runtime/DBus da sessão existente quando essas
+variáveis estão ausentes; não inicia servidores ou serviços de áudio.
+
 ## Controle na interface nativa
 
 Abra **APLICATIVOS**. O painel inicia no modo local Soloist:
@@ -81,6 +119,8 @@ Abra **APLICATIVOS**. O painel inicia no modo local Soloist:
 - ×: atualizar estado, consultar fila, ativar dispositivo, retomar, pausar,
   faixa anterior/próxima, volume ±5% ou desativar o dispositivo, conforme linha.
 - × em uma faixa da fila: iniciar essa faixa no Soloist.
+- Na linha de pausa/retomada, × alterna a ação conforme o estado consultado.
+  Depois de pausar, a mesma linha passa a oferecer “Retomar Spotify local”.
 - “Abrir playlists e dispositivos da conta”: alterna para a Web API opcional.
 - No modo Web API, × em playlist inicia no dispositivo ativo; □ lista suas
   faixas; × em dispositivo transfere a sessão sem iniciar música (`play=false`).
@@ -92,9 +132,13 @@ aceito pelo Spotify pode ter efeito na conta; cancelar não desfaz essa ação.
 “Pausar Spotify local” ou “Pausar” antes de voltar à TV. Não associamos nem
 sincronizamos músicas com os canais de vídeo.
 
-O estado é atualizado por solicitação, sem polling contínuo. “Comando aceito”
-não é prova de áudio nem confirmação instantânea de reprodução; use atualizar
-estado e a verificação audível. Os controles IPTV permanecem como antes.
+Após controles locais, consultamos o estado em até cinco leituras, sob prazo
+compartilhado de 12 segundos, sem repetir o comando. A retomada tenta ativar
+o dispositivo quando ele está explicitamente inativo. Durante a solicitação,
+o cabeçalho informa a atualização; uma falha ou cancelamento deixa o estado
+sem confirmação, em vez de manter um “Tocando” antigo. Não há polling contínuo.
+Confirmação pelo provedor ainda exige verificação audível. Os controles IPTV
+permanecem como antes.
 
 ## Web API opcional: login PKCE e consultas
 

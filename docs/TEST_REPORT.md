@@ -312,4 +312,41 @@ de versão Soloist, teste OAuth autenticado ou medição nova de alimentação/F
 foi recebido. Mantemos a condição de candidata à validação física; esta nova
 evidência não exige alteração de código nem repetição do build já aprovado.
 
+### Correção posterior: pausa/retomada e ausência de som
+
+A foto enviada depois mostra o painel APLICATIVOS na TV, indicador PS4
+conectado e um cabeçalho “Tocando”. O usuário informou que conseguiu pausar,
+que a retomada não funcionou como esperava e, depois, confirmou **sem som**.
+Não há confirmação audível anterior. A causa da ausência de som permanece
+pendente; o sink ALSA do player IPTV não configura a saída do Soloist.
+
+A auditoria encontrou um defeito reproduzível no código: controles locais
+retornavam apenas “comando aceito”, mantendo o cabeçalho da leitura anterior.
+A linha Pausar também não oferecia retomada ao apertar × novamente. Agora
+consultamos o estado depois do controle, com cinco leituras no máximo e
+prazo compartilhado de 12 segundos, sem reenviar o comando. A mesma linha
+alterna pausa/retomada; retomada ativa o dispositivo quando explicitamente
+inativo. Falha/cancelamento elimina a indicação antiga de reprodução.
+
+Validação local da correção, em build isolado `build-spotify-controls-final`:
+
+- Build limpo CMake/MSVC do núcleo portável: aprovado.
+- CTest portável: **11/11 PASS**, 2,33 s; após os casos adicionais de seleção
+  de áudio, **11/11 PASS**, 1,86 s.
+- Suíte Python atual: **51 casos, 50 PASS e 1 SKIP POSIX** no Windows, 1,067 s.
+- Casos novos cobrem confirmação assíncrona, pausa/retomada, ativação antes de
+  play, estados não confirmados, prazo, erro de leitura, cancelamento na UI,
+  preservação da chave e ambiente de áudio restrito ao processo filho.
+
+A preferência de nó PipeWire/fallback Pulse pode ser salva sem solicitar a
+chave outra vez. O diagnóstico de áudio consulta saídas, mute, volume, fluxos
+e estado Soloist. Nenhum nó foi selecionado por inferência; nenhum servidor,
+serviço, saída global ou arquivo privado real foi alterado pelo agente.
+
+Os **15/15 CTest no ARM64 acima antecedem esta correção**. Novo build nativo,
+retomada física e som HDMI após a correção estão pendentes. A tentativa de
+observação direta pelo agente falhou porque o runtime de Computer Use
+informou indisponibilidade do pipe nativo; só as imagens e logs enviados
+pelo usuário foram observados. Não houve teste físico inventado.
+
 ---

@@ -326,7 +326,10 @@ class SpotifyTests(unittest.TestCase):
             if not responses:
                 raise AssertionError("Unexpected Soloist invocation")
             return responses.pop(0)
-        client = spotify.Soloist(self.store, runner)
+        virtual_time = [0.0]
+        def sleep(delay):
+            virtual_time[0] += delay
+        client = spotify.Soloist(self.store, runner, clock=lambda: virtual_time[0], sleep=sleep)
         client.binary = lambda: "test-soloist-binary"
         data = self.store.directory / "runtime"
         data.mkdir(exist_ok=True)
@@ -336,14 +339,22 @@ class SpotifyTests(unittest.TestCase):
         return client, calls, data
 
     def test_soloist_local_controls_never_receive_api_key(self):
-        client, calls, _ = self.soloist(*[(0, b"")] * 6)
-        for command in ("pause", "resume", "next", "previous", "activate", "deactivate"):
-            client.records("soloist-" + command)
-        self.assertEqual([c[-1] for c in calls], ["pause", "play", "next", "prev", "activate", "deactivate"])
-        for call in calls:
-            self.assertEqual(call[:4], ["test-soloist-binary", "ctl", "--ws", "127.0.0.1:9090"])
-            self.assertNotIn("--api-key", call)
-            self.assertSafe(call)
+        for command, native, state in (("pause", "pause", "paused"), ("resume", "play", "playing"),
+                                       ("next", "next", "playing"), ("previous", "prev", "playing"),
+                                       ("activate", "activate", "paused"), ("deactivate", "deactivate", "paused")):
+            after = {"status": state, "is_active": command != "deactivate"}
+            responses = [(0, b""), (0, json.dumps(after).encode())]
+            if command == "resume":
+                responses.insert(0, (0, b'{"status":"paused","is_active":true}'))
+            client, calls, _ = self.soloist(*responses)
+            records = client.records("soloist-" + command)
+            self.assertEqual(records[0][1], "ready")
+            controls = [call for call in calls if call[-1] != "--json"]
+            self.assertEqual([call[-1] for call in controls], [native])
+            for call in calls:
+                self.assertEqual(call[:4], ["test-soloist-binary", "ctl", "--ws", "127.0.0.1:9090"])
+                self.assertNotIn("--api-key", call)
+                self.assertSafe(call)
 
     def test_soloist_refuses_external_or_invalid_endpoint(self):
         client, calls, data = self.soloist()
@@ -380,9 +391,9 @@ class SpotifyTests(unittest.TestCase):
         self.assertEqual(calls[0][-3:], ["queue", "20", "--json"])
 
     def test_soloist_volume_relative_and_state_checked(self):
-        client, calls, _ = self.soloist((0, b'{"volume":2}'), (0, b""))
+        client, calls, _ = self.soloist((0, b'{"volume":2}'), (0, b""), (0, b'{"status":"paused","volume":0}'))
         client.records("soloist-volume-down")
-        self.assertEqual(calls[-1][-2:], ["volume", "0"])
+        self.assertEqual(calls[1][-2:], ["volume", "0"])
         client, calls, _ = self.soloist((0, b'{}'))
         with self.assertRaises(spotify.SpotifyError):
             client.records("soloist-volume-up")
@@ -397,12 +408,94 @@ class SpotifyTests(unittest.TestCase):
             self.assertSafe(raised.exception)
 
     def test_soloist_play_requires_official_uri(self):
-        client, calls, _ = self.soloist((0, b""))
+        client, calls, _ = self.soloist((0, b'{"status":"paused","is_active":true}'), (0, b""), (0, b'{"status":"playing","is_active":true}'))
         client.records("soloist-play", URI)
-        self.assertEqual(calls[0][-2:], ["play", URI])
+        self.assertEqual(calls[1][-2:], ["play", URI])
         with self.assertRaises(spotify.SpotifyError):
             client.records("soloist-play", "https://outside.invalid/track")
+        self.assertEqual(len(calls), 3)
+
+    def test_soloist_pause_waits_for_actual_state_without_replaying_command(self):
+        client, calls, _ = self.soloist((0, b""), (0, b'{"status":"playing"}'), (0, b'{"status":"paused","volume":35}'))
+        records = client.records("soloist-pause")
+        self.assertEqual(records[0][1], "ready")
+        self.assertEqual(records[-1][1], "paused")
+        self.assertEqual(sum(call[-1] == "pause" for call in calls), 1)
+
+    def test_soloist_toggle_same_action_pauses_then_resumes(self):
+        playing = (0, b'{"status":"playing","is_active":true}')
+        paused = (0, b'{"status":"paused","is_active":true}')
+        client, calls, _ = self.soloist(playing, (0, b""), paused, paused, (0, b""), playing)
+        first = client.records("soloist-toggle")
+        second = client.records("soloist-toggle")
+        self.assertEqual(first[-1][1], "paused")
+        self.assertEqual(second[-1][1], "playing")
+        self.assertEqual([call[-1] for call in calls if call[-1] != "--json"], ["pause", "play"])
+
+    def test_soloist_resume_activates_local_device_before_play(self):
+        before = (0, b'{"status":"paused","is_active":false}')
+        active = (0, b'{"status":"paused","is_active":true}')
+        playing = (0, b'{"status":"playing","is_active":true}')
+        client, calls, _ = self.soloist(before, (0, b""), active, (0, b""), playing)
+        records = client.records("soloist-resume")
+        self.assertEqual(records[0][1], "ready")
+        self.assertEqual(records[-1][1], "playing")
+        self.assertEqual([call[-1] for call in calls if call[-1] != "--json"], ["activate", "play"])
+
+    def test_soloist_resume_still_paused_is_not_reported_as_playing(self):
+        paused = (0, b'{"status":"paused","is_active":true}')
+        client, calls, _ = self.soloist(paused, (0, b""), *([paused] * 5))
+        records = client.records("soloist-resume")
+        self.assertEqual(records[0][1], "unavailable")
+        self.assertEqual(records[-1][1], "paused")
+        self.assertEqual(sum(call[-1] == "play" for call in calls), 1)
+        self.assertEqual(len(calls), 7)
+
+    def test_soloist_resume_without_active_device_does_not_repeat_or_start_play(self):
+        inactive = (0, b'{"status":"paused","is_active":false}')
+        client, calls, _ = self.soloist(inactive, (0, b""), *([inactive] * 5))
+        records = client.records("soloist-resume")
+        self.assertEqual(records[0][1], "unavailable")
+        self.assertEqual(sum(call[-1] == "activate" for call in calls), 1)
+        self.assertEqual(sum(call[-1] == "play" for call in calls), 0)
+
+    def test_soloist_resume_idle_or_buffering_explains_unconfirmed_result(self):
+        for status, message in (("idle", "Sem faixa"), ("buffering", "carregando")):
+            after = (0, json.dumps({"status": status, "is_active": True}).encode())
+            client, calls, _ = self.soloist((0, b'{"status":"paused"}'), (0, b""), *([after] * 5))
+            records = client.records("soloist-resume")
+            self.assertEqual(records[0][1], "unavailable")
+            self.assertIn(message, records[0][2])
+            self.assertEqual(records[-1][1], status)
+            self.assertEqual(sum(call[-1] == "play" for call in calls), 1)
+
+    def test_soloist_post_command_read_failure_does_not_claim_success(self):
+        client, _, _ = self.soloist((0, b""), (2, FAKE_TOKEN.encode()))
+        records = client.records("soloist-pause")
+        self.assertEqual(records[0][1], "network")
+        self.assertEqual(len(records), 1)
+        self.assertNotIn("aceito", records[0][2])
+        self.assertSafe(records)
+
+    def test_soloist_invalid_state_never_toggles_or_claims_playback(self):
+        client, calls, _ = self.soloist((0, b'{"status":"invalid"}'))
+        records = client.records("soloist-toggle")
+        self.assertEqual(records[0][1], "response")
         self.assertEqual(len(calls), 1)
+
+    def test_soloist_deadline_bounds_status_confirmation(self):
+        client, calls, _ = self.soloist((0, b""), (0, b'{"status":"playing"}'))
+        # Reading the first state consumes the remaining command budget.
+        runner = client.runner
+        def delayed(arguments):
+            result = runner(arguments)
+            if arguments[-1] == "--json":
+                client.sleep(12)
+            return result
+        client.runner = delayed
+        records = client.records("soloist-pause")
+        self.assertEqual(records[0][1], "unavailable")
+        self.assertEqual(len(calls), 2)
 
     def test_soloist_configuration_hides_fake_key_and_never_reads_it_as_argument(self):
         synthetic_key = "spak_" + "synthetic_test_value_0000"
@@ -438,6 +531,44 @@ class SpotifyTests(unittest.TestCase):
         with mock.patch.object(spotify.subprocess, "Popen", return_value=process), contextlib.redirect_stdout(io.StringIO()):
             client.run_foreground()
         process.terminate.assert_called_once()
+
+    def test_soloist_audio_route_preserves_key_without_printing_it(self):
+        synthetic_key = "spak_" + "synthetic_test_value_0000"
+        self.store.write("soloist.private.json", {"api_key": synthetic_key})
+        with mock.patch.object(spotify, "Store", return_value=self.store), contextlib.redirect_stdout(io.StringIO()) as output:
+            result = spotify.main(["soloist-audio", "--pipewire-device", "alsa_output.hdmi-stereo", "--pulse-sink", "alsa_output.hdmi-stereo"])
+        self.assertEqual(result, 0)
+        saved = self.store.read("soloist.private.json")
+        self.assertEqual(saved["api_key"], synthetic_key)
+        self.assertEqual(saved["pipewire_device"], "alsa_output.hdmi-stereo")
+        self.assertEqual(saved["pulse_sink"], "alsa_output.hdmi-stereo")
+        self.assertNotIn(synthetic_key, output.getvalue())
+        with mock.patch.object(spotify, "Store", return_value=self.store), contextlib.redirect_stdout(io.StringIO()):
+            spotify.main(["soloist-audio", "--pulse-sink", ""])
+        saved = self.store.read("soloist.private.json")
+        self.assertEqual(saved["pulse_sink"], "")
+        self.assertEqual(saved["api_key"], synthetic_key)
+
+    def test_soloist_audio_route_rejects_invalid_identifier(self):
+        self.store.write("soloist.private.json", {"api_key": "preserved-test-value"})
+        for value in ("name\nnew line", "https://example.invalid/private?token=value", "$(command)"):
+            with mock.patch.object(spotify, "Store", return_value=self.store), contextlib.redirect_stdout(io.StringIO()):
+                result = spotify.main(["soloist-audio", "--pulse-sink", value])
+            self.assertEqual(result, 1)
+        self.assertEqual(self.store.read("soloist.private.json"), {"api_key": "preserved-test-value"})
+
+    def test_soloist_routes_only_its_child_process(self):
+        self.store.write("soloist.private.json", {"api_key": "spak_" + "synthetic_test_value_0000", "pipewire_device": "73", "pulse_sink": "alsa_output.hdmi-stereo"})
+        client, _, _ = self.soloist()
+        process = mock.Mock()
+        process.wait.return_value = 0
+        environment_before = os.environ.copy()
+        with mock.patch.object(spotify.subprocess, "Popen", return_value=process) as spawn, contextlib.redirect_stdout(io.StringIO()):
+            client.run_foreground()
+        arguments = spawn.call_args.args[0]
+        self.assertEqual(arguments[arguments.index("--pipewire-device") + 1], "73")
+        self.assertEqual(spawn.call_args.kwargs["env"]["PULSE_SINK"], "alsa_output.hdmi-stereo")
+        self.assertEqual(os.environ, environment_before)
 
     def test_soloist_refuses_key_entry_when_hidden_input_unavailable(self):
         with mock.patch.object(spotify, "Store", return_value=self.store), mock.patch.object(spotify.getpass, "getpass", side_effect=spotify.getpass.GetPassWarning()), contextlib.redirect_stderr(io.StringIO()) as errors:

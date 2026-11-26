@@ -44,6 +44,12 @@ da nova UI e **15/15 CTest aprovados em 12,26 s**, com renderização e saída
 da integração e login OAuth opcional. Os 12/12 testes anteriores referem-se
 à RC1 antes da integração. Nenhum serviço foi modificado por esta integração.
 
+A foto posterior confirma o painel APLICATIVOS na TV e o indicador PS4
+conectado. O usuário relatou pausa funcionando e **ausência de som**. A
+correção de pausa/retomada e estado foi testada no host; seu novo build no Pi
+e a identificação da saída de áudio continuam pendentes. Consulte o
+[diagnóstico Spotify](docs/SPOTIFY.md#diagnosticar-ausência-de-som).
+
 ## Compilar e iniciar manualmente no Raspberry
 
 Na sessão XFCE do usuário, em um **checkout isolado** desta branch:

@@ -116,17 +116,36 @@ void SpotifyWorker::run() {
 
 SpotifyPanel::SpotifyPanel(){rebuild();}
 void SpotifyPanel::useLocal(bool local) {
-    local_=local;page_.reset();
+    local_=local;page_.reset();confirming_=false;playback_="unknown";
     nowPlaying_=local?"Spotify Soloist - dispositivo Raspberry TV":"Spotify Web API - dispositivo da conta";
     message_=local?"Inicie Soloist no terminal e selecione Raspberry TV no Spotify.":"Playlists e dispositivos: configure Client ID e login OAuth (opcional).";
     rebuild();
 }
+void SpotifyPanel::requestStarted(const std::string& command) {
+    static const std::vector<std::string> commands{
+        "soloist-status","soloist-play","soloist-resume","soloist-toggle","soloist-pause",
+        "soloist-next","soloist-previous","soloist-volume-up","soloist-volume-down",
+        "soloist-activate","soloist-deactivate","status","play","resume","pause",
+        "next","previous","volume-up","volume-down","transfer"};
+    if(std::find(commands.begin(),commands.end(),command)==commands.end())return;
+    confirming_=true;nowPlaying_="Atualizando estado do Spotify...";
+}
+void SpotifyPanel::requestCancelled() {
+    if(!confirming_)return;
+    confirming_=false;playback_="unknown";
+    nowPlaying_="Estado do Spotify sem confirmacao; atualize";
+    message_="Espera cancelada. Um comando ja aceito pelo Spotify pode ter sido executado.";
+    rebuild();
+}
 void SpotifyPanel::accept(const SpotifyReply& reply) {
     message_=reply.message;
-    if(reply.code=="auth" || reply.code=="setup") {page_.reset();nowPlaying_="Spotify Connect - conta desconectada";}
+    if(confirming_ && !reply.hasPlayback) {playback_="unknown";nowPlaying_="Estado do Spotify sem confirmacao; atualize";}
+    confirming_=false;
+    if(reply.code=="auth" || reply.code=="setup") {page_.reset();playback_="unknown";nowPlaying_="Spotify Connect - conta desconectada";}
     if(reply.hasPlayback) {
+        playback_=reply.playback;
         nowPlaying_=reply.playback=="playing"?"Tocando: ":reply.playback=="paused"?"Pausado: ":reply.playback=="buffering"?"Buffering: ":"Sem reproducao ativa";
-        nowPlaying_+=reply.track;
+        if(!reply.track.empty())nowPlaying_+=(reply.playback=="idle"?" | ":"")+reply.track;
         if(!reply.artist.empty())nowPlaying_+=" / "+reply.artist;
         if(!reply.device.empty())nowPlaying_+=" | "+reply.device;
         if(reply.volume>=0)nowPlaying_+=" | "+std::to_string(reply.volume)+"%";
@@ -153,7 +172,9 @@ void SpotifyPanel::rebuild() {
         {"Fila local de reproducao", "X listar", {"soloist-queue"}},
         {"Ativar Raspberry TV no Spotify", "Dispositivo local", {"soloist-activate"}},
         {"Retomar reproducao local", "Soloist", {"soloist-resume"}},
-        {"Pausar Spotify local", "Soloist", {"soloist-pause"}},
+        {playback_=="paused"?"Retomar Spotify local":
+         playback_=="playing" || playback_=="buffering"?"Pausar Spotify local":"Pausar / retomar Spotify local",
+         "X alterna pausa/reproducao", {"soloist-toggle"}},
         {"Faixa anterior", "Soloist", {"soloist-previous"}},
         {"Proxima faixa", "Soloist", {"soloist-next"}},
         {"Diminuir volume em 5%", "Soloist", {"soloist-volume-down"}},

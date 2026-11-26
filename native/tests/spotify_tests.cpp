@@ -36,6 +36,18 @@ int main() {
     panel.accept(parseSpotifyReply("RTVSPOTIFY\t1\nstatus\tauth\tLogin\n"));
     check(panel.rows().size()==11,"logout clears account metadata");
 
+    SpotifyPanel controls;controls.accept(playback);
+    check(controls.rows()[4].title=="Pausar Spotify local" && controls.activate(4)[0]=="soloist-toggle","same action toggles local playback");
+    controls.requestStarted("soloist-toggle");
+    check(controls.nowPlaying().find("Atualizando")!=std::string::npos,"pending control does not show old playing state");
+    controls.accept(parseSpotifyReply("RTVSPOTIFY\t1\nstatus\tready\tEstado\nplayback\tpaused\tFaixa\tArtista\tSala\t65\n"));
+    check(controls.nowPlaying().find("Pausado:")==0 && controls.rows()[4].title=="Retomar Spotify local","confirmed pause changes header and same row");
+    controls.requestStarted("soloist-toggle");
+    controls.accept(parseSpotifyReply("RTVSPOTIFY\t1\nstatus\tnetwork\tSem%20confirmacao\n"));
+    check(controls.nowPlaying().find("sem confirmacao")!=std::string::npos,"failed readback invalidates old state");
+    controls.accept(playback);controls.requestStarted("soloist-resume");controls.requestCancelled();
+    check(controls.nowPlaying().find("sem confirmacao")!=std::string::npos,"cancel does not restore stale playing state");
+
     TvModel model;model.dispatch(Action::Down);model.dispatch(Action::Confirm);
     check(model.view()==View::Apps && model.visibleCount()==11,"Apps reachable by DS4 actions");
     model.setAppRowCount(12);model.dispatch(Action::Right);check(model.selectedRow()==6,"Apps pagination");

@@ -79,3 +79,14 @@ recebe aprovação física por inferência.
 - [ ] Permissões dos arquivos reais, versão do cliente Soloist e áudio HDMI audível verificados no Pi.
 - [ ] OAuth real opcional, playlists da conta e dispositivo real.
 - [ ] Regressão física IPTV/Full HD/DS4/OSD após esta integração.
+
+## Correção posterior Spotify / ausência de som
+
+- [x] Foto fornecida confirma painel APLICATIVOS na TV e indicador PS4 conectado.
+- [x] Registrar pausa relatada e ausência de som confirmada pelo usuário.
+- [x] Corrigir alternância pausa/retomada e cabeçalho desatualizado; testes no host.
+- [x] Testar preferência de saída isolada no processo e preservação da chave.
+- [x] Preparar diagnóstico de saídas/mute/fluxos sem credenciais.
+- [ ] Obter diagnóstico real e identificar a saída usada pelo Soloist.
+- [ ] Compilar e executar os 15 CTest no Pi após esta correção.
+- [ ] Confirmar música audível, pausa/retomada, faixas e volume na TV.
