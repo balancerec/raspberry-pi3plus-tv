@@ -4,6 +4,31 @@ Implementação opcional na branch `feature/native-spotify-integration`. Não é
 parte da aprovação física anterior da RC1. Não altera o player IPTV, o áudio
 global, os serviços, a sessão gráfica ou o autostart do DietPi.
 
+## Player nativo de mídia — 26/11/2026
+
+A tela APLICATIVOS usa controles de mídia, com reproduzir/pausar ao centro,
+faixa e artista, anterior/próxima, volume, mute, aleatório e repetição.
+Fila, dispositivo, Mais e atualização de estado ficam em botões separados.
+Os símbolos são desenhados pelo SDL e o texto usa o cache existente; nenhuma
+imagem de capa é inventada ou baixada. [Mapeamento completo](CONTROLS.md).
+
+O helper devolve `timeline` e `features` apenas com `--media`, preservando o
+protocolo do executável antigo. Posição, duração e velocidade vêm de
+`playback_state`; ausência de dados não vira uma barra fictícia. A consulta
+ocorre a cada 10 s enquanto o player está visível, com redraw de progresso
+no máximo uma vez por segundo. Falhas invalidam o estado e o tempo exibidos.
+Mute salva somente o volume anterior em `volume.private.json`, no mesmo
+diretório privado das preferências Spotify. Nenhuma credencial é adicionada.
+
+O novo desenho exige compilar o executável nativo atualizado. O pacote central
+oferece [atualização explícita pelo ícone](INSTALLATION.md#atualizar-os-controles-de-mídia)
+em diretório isolado, com CTest e rollback; abrir o ícone normal depois não
+compila. A mudança visual não é uma correção comprovada da ausência de áudio.
+
+Referência de metadados e ações:
+[WebSocket Soloist](https://developer.spotify.com/documentation/soloist/reference/websocket-api),
+consultada em 26/11/2026.
+
 ## Duas interfaces oficiais
 
 **Soloist é o caminho para áudio no Raspberry.** É o cliente oficial headless

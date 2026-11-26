@@ -453,11 +453,12 @@ class Soloist:
     No download, service install or automatic start. Controls use the official
     ctl command and a loopback endpoint, so we do not implement a second player.
     """
-    def __init__(self, store: Store, runner=None, clock=time.monotonic, sleep=time.sleep):
+    def __init__(self, store: Store, runner=None, clock=time.monotonic, sleep=time.sleep, media=False):
         self.store = store
         self.clock, self.sleep = clock, sleep
         self.deadline = clock() + 12
         self.runner = runner or self._run_with_deadline
+        self.media = media
 
     def _run_with_deadline(self, arguments):
         return self._bounded_run(arguments, min(8, self.deadline - self.clock()))
@@ -603,8 +604,9 @@ class Soloist:
             raise SpotifyError("response", "Estado de reproducao Soloist invalido.")
         volume = data.get("volume")
         volume = int(volume) if type(volume) in (int, float) and 0 <= volume <= 100 else -1
-        return [("status", code, message),
-                ("playback", state, name, artists, "Raspberry TV / Soloist", str(volume))]
+        records = [("status", code, message),
+                   ("playback", state, name, artists, "Raspberry TV / Soloist", str(volume))]
+        return records + (media_records(data) if self.media else [])
 
     def observe_after_command(self, predicate=None):
         # command_result only acknowledges dispatch. Read actual state without
@@ -690,7 +692,51 @@ class Soloist:
         if command in ("play", "resume"):
             return self.resume(value if command == "play" else "")
         predicate = None
-        if command in ("volume-up", "volume-down"):
+        if command in ("mute", "shuffle", "repeat", "seek", "seek-back", "seek-forward"):
+            data = self.ctl(["now"], True)
+            actions = data.get("available_actions") or {}
+            options = data.get("options") or {}
+            actions = actions if isinstance(actions, dict) else {}
+            options = options if isinstance(options, dict) else {}
+            if command == "mute":
+                current = data.get("volume")
+                if type(current) not in (int, float) or not 0 <= current <= 100:
+                    raise SpotifyError("unavailable", "Volume indisponivel neste dispositivo.")
+                saved = self.store.read("volume.private.json").get("restore_volume", 35)
+                target = int(saved) if type(saved) in (int, float) and 0 < saved <= 100 else 35
+                if current > 0:
+                    self.store.write("volume.private.json", {"restore_volume": current})
+                    target = 0
+                self.ctl(["volume", str(target)])
+                predicate = lambda state: state.get("volume") == target
+            elif command == "shuffle":
+                current = options.get("shuffle")
+                if "shuffle" not in actions or type(current) is not bool:
+                    raise SpotifyError("unavailable", "Aleatorio indisponivel neste conteudo.")
+                self.ctl(["shuffle", "off" if current else "on"])
+                predicate = lambda state: (state.get("options") or {}).get("shuffle") is (not current)
+            elif command == "repeat":
+                current = options.get("repeat")
+                if "set_repeat" not in actions or current not in ("off", "context", "track"):
+                    raise SpotifyError("unavailable", "Repeticao indisponivel neste conteudo.")
+                target = {"off": "context", "context": "track", "track": "off"}[current]
+                self.ctl(["repeat", target])
+                predicate = lambda state: (state.get("options") or {}).get("repeat") == target
+            else:
+                position, duration, _ = media_position(data)
+                if "seek" not in actions or position < 0 or duration <= 0:
+                    raise SpotifyError("unavailable", "Avanco indisponivel nesta faixa.")
+                if command == "seek":
+                    if not value.isdigit() or len(value) > 9:
+                        raise SpotifyError("request", "Posicao de reproducao invalida.")
+                    target = min(duration, int(value))
+                else:
+                    target = max(0, min(duration, position + (10000 if command == "seek-forward" else -10000)))
+                self.ctl(["seek", str(target)])
+                def predicate(state):
+                    observed = media_position(state)[0]
+                    return observed >= 0 and abs(observed - target) <= 2500
+        elif command in ("volume-up", "volume-down"):
             data = self.ctl(["now"], True)
             current = data.get("volume")
             if type(current) not in (int, float) or not 0 <= current <= 100:
@@ -713,6 +759,45 @@ class Soloist:
         if not confirmed:
             message = "Comando enviado, mas a alteracao ainda nao foi confirmada pelo Soloist."
         return self.playback_records(state, message, "ready" if confirmed else "unavailable")
+
+
+def media_position(data):
+    position = data.get("position") or {}
+    item = data.get("item") or {}
+    if not isinstance(position, dict) or not isinstance(item, dict):
+        return -1, -1, 0
+    decorations = item.get("decorations") or {}
+    playback = decorations.get("playback") or {} if isinstance(decorations, dict) else {}
+    duration = playback.get("duration_ms") if isinstance(playback, dict) else None
+    anchor, timestamp, speed = position.get("position_ms"), position.get("timestamp_ms"), position.get("speed")
+    valid = lambda value: type(value) in (int, float) and math.isfinite(value)
+    if not valid(anchor) or not 0 <= anchor <= 604800000 or not valid(duration) or not 0 < duration <= 604800000:
+        return -1, -1, 0
+    speed = speed if valid(speed) and 0 <= speed <= 4 and data.get("status") == "playing" else 0
+    elapsed = time.time() * 1000 - timestamp if valid(timestamp) else -1
+    if 0 <= elapsed <= 604800000:
+        anchor += elapsed * speed
+    else:
+        speed = 0
+    return min(int(duration), int(anchor)), int(duration), int(speed * 1000)
+
+
+def media_records(data):
+    position, duration, speed = media_position(data)
+    actions, options = data.get("available_actions") or {}, data.get("options") or {}
+    actions = actions if isinstance(actions, dict) else {}
+    options = options if isinstance(options, dict) else {}
+    shuffle = options.get("shuffle")
+    repeat = options.get("repeat")
+    records = [("features", "1" if data.get("is_active") else "0",
+                "1" if "seek" in actions and duration > 0 else "0",
+                "1" if "shuffle" in actions and type(shuffle) is bool else "0",
+                "1" if "set_repeat" in actions and repeat in ("off", "context", "track") else "0",
+                str(int(shuffle)) if type(shuffle) is bool else "-1",
+                repeat if repeat in ("off", "context", "track") else "unknown")]
+    if position >= 0:
+        records.append(("timeline", str(position), str(duration), str(speed)))
+    return records
 
 
 def page_rows(kind, data, offset, parent=""):
@@ -783,7 +868,12 @@ def command_records(client: Client, command: str, value="", offset=0):
         state = "playing" if data.get("is_playing") else "paused" if data else "idle"
         return [("status", "ready", "Estado atualizado; audio sai no dispositivo Spotify, conforme a selecao da conta."),
                 ("playback", state, clean_label(item.get("name")), clean_label(artists), clean_label(device.get("name")), str(volume))]
-    if command in ("play", "resume"):
+    if command == "toggle":
+        if client.playback().get("is_playing"):
+            client.pause()
+        else:
+            client.play()
+    elif command in ("play", "resume"):
         client.play(value if command == "play" else "")
     elif command == "pause":
         client.pause()
@@ -814,8 +904,9 @@ def emit(records):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Raspberry TV: Spotify Connect com OAuth PKCE; nunca recebe segredos por argumento.")
-    parser.add_argument("command", choices=("configure", "login", "logout", "profile", "playlists", "items", "search", "devices", "status", "play", "resume", "pause", "next", "previous", "volume", "volume-up", "volume-down", "transfer", "soloist-configure", "soloist-audio", "soloist-run", "soloist-status", "soloist-queue", "soloist-play", "soloist-resume", "soloist-toggle", "soloist-pause", "soloist-next", "soloist-previous", "soloist-volume-up", "soloist-volume-down", "soloist-activate", "soloist-deactivate"))
+    parser.add_argument("command", choices=("configure", "login", "logout", "profile", "playlists", "items", "search", "devices", "status", "play", "resume", "pause", "next", "previous", "volume", "volume-up", "volume-down", "transfer", "soloist-configure", "soloist-audio", "soloist-run", "soloist-status", "soloist-queue", "soloist-play", "soloist-resume", "soloist-toggle", "soloist-pause", "soloist-next", "soloist-previous", "soloist-volume-up", "soloist-volume-down", "soloist-activate", "soloist-deactivate", "soloist-mute", "soloist-shuffle", "soloist-repeat", "soloist-seek", "soloist-seek-back", "soloist-seek-forward", "toggle"))
     parser.add_argument("value", nargs="?", default="")
+    parser.add_argument("--media", action="store_true")
     parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--pipewire-device", default=None)
@@ -875,7 +966,7 @@ def main(argv=None):
             if args.command == "login":
                 login(client, args.no_browser)
                 return 0
-            records = Soloist(store).records(args.command, args.value) if args.command.startswith("soloist-") else command_records(client, args.command, args.value, bounded_offset(args.offset))
+            records = Soloist(store, media=args.media).records(args.command, args.value) if args.command.startswith("soloist-") else command_records(client, args.command, args.value, bounded_offset(args.offset))
         emit(records)
         return 0
     except SpotifyError as exc:

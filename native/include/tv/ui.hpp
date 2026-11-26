@@ -32,6 +32,7 @@ private:
     void header(SDL_Renderer*,bool);
     void home(SDL_Renderer*,const TvModel&);
     void content(SDL_Renderer*,const TvModel&);
+    void spotifyContent(SDL_Renderer*,const TvModel&);
     void overlay(SDL_Renderer*,const TvModel&);
 };
 }

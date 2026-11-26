@@ -169,6 +169,8 @@ int main(int argc, char** argv) {
     bool running=true,dirty=true,savePending=false,playbackHelp=false,loadPending=!playlist.empty();
     raspberry_tv::ChannelQueue queue;
     std::uint32_t lastAction=SDL_GetTicks(),osdUntil=0;
+    std::uint32_t lastSpotifyRequest=0,spotifySecond=0;
+    bool spotifyVisible=false;
     auto previousSnapshot=player.snapshot();
     auto shownMinute=std::time(nullptr)/60;
     auto reload=[&] {
@@ -181,7 +183,24 @@ int main(int argc, char** argv) {
         queue.start(model);playbackHelp=false;
         if(const auto* channel=queue.current(model);channel && !player.play(channel->url))model.setStatusMessage(player.snapshot().status);
     };
+    auto submitSpotify=[&](raspberry_tv::SpotifyArguments arguments) {
+        if(arguments.empty()){model.setStatusMessage("Controle indisponivel nesta faixa");return;}
+        const auto operation=arguments.front();
+        if(operation=="show-options") {
+            spotifyPanel.showOptions();model.setAppRowCount(spotifyPanel.rows().size(),true);return;
+        }
+        if(operation=="use-local" || operation=="use-web") {
+            spotify.cancel();spotifyPanel.useLocal(operation=="use-local");
+            model.setAppRowCount(spotifyPanel.rows().size(),true);spotifyVisible=false;return;
+        }
+        if(!spotify.submit(std::move(arguments)))model.setStatusMessage("Spotify ocupado; O cancela");
+        else {
+            if(operation=="soloist-play" || operation=="play")spotifyPanel.showMedia();
+            spotifyPanel.requestStarted(operation);lastSpotifyRequest=SDL_GetTicks();model.setStatusMessage("Solicitacao Spotify em andamento");
+        }
+    };
     while(running && !interrupted) {
+        raspberry_tv::SpotifyArguments pointerCommand;
         SDL_Event event;const auto tick=SDL_GetTicks();
         if(SDL_WaitEventTimeout(&event,20))do {
             if(event.type==SDL_QUIT)running=false;
@@ -192,8 +211,17 @@ int main(int argc, char** argv) {
                 Button b;if(buttonFromSDL(event.cbutton.button,b))input.onButton(b,event.type==SDL_CONTROLLERBUTTONDOWN,tick);
             } else if(event.type==SDL_CONTROLLERAXISMOTION && event.caxis.which==instanceId) {
                 Axis a;if(axisFromSDL(event.caxis.axis,a))input.onAxis(a,event.caxis.value,tick);
+            } else if(event.type==SDL_MOUSEBUTTONUP && event.button.button==SDL_BUTTON_LEFT && model.view()==raspberry_tv::View::Apps && spotifyPanel.mediaMode() && !model.showHelp() && !player.snapshot().active()) {
+                const int x=event.button.x*2/3,y=event.button.y*2/3;
+                if(spotifyPanel.selectMediaAt(x,y))pointerCommand=spotifyPanel.activateMedia();
+                else if(y>=487 && y<=510 && spotifyPanel.positionAt(tick)>=0)pointerCommand=spotifyPanel.seekAt(x);
+                dirty=true;
             } else if(event.type==SDL_KEYDOWN || event.type==SDL_KEYUP) {
                 if(event.type==SDL_KEYDOWN && event.key.repeat)continue;
+                if(event.key.keysym.sym==SDLK_SPACE && model.view()==raspberry_tv::View::Apps && spotifyPanel.mediaMode() && !model.showHelp() && !player.snapshot().active()) {
+                    if(event.type==SDL_KEYDOWN)pointerCommand=spotifyPanel.mediaShortcut(Action::Confirm);
+                    dirty=true;continue;
+                }
                 if(event.type==SDL_KEYDOWN && event.key.keysym.sym==SDLK_F5){reload();dirty=true;continue;}
                 if(event.type==SDL_KEYDOWN && event.key.keysym.sym==SDLK_q && (event.key.keysym.mod&KMOD_CTRL)){running=false;continue;}
                 Button b;if(keyFromSDL(event.key.keysym.sym,b))keyboard.onButton(b,event.type==SDL_KEYDOWN,tick);
@@ -203,6 +231,7 @@ int main(int argc, char** argv) {
             }
         }while(SDL_PollEvent(&event));
         auto actions=input.poll(SDL_GetTicks());auto keys=keyboard.poll(SDL_GetTicks());actions.insert(actions.end(),keys.begin(),keys.end());
+        if(!pointerCommand.empty()) {submitSpotify(std::move(pointerCommand));dirty=true;}
         for(const auto action:actions) {
             lastAction=SDL_GetTicks();osdUntil=lastAction+5000;savePending=true;dirty=true;
             const auto snap=player.snapshot();
@@ -239,16 +268,30 @@ int main(int argc, char** argv) {
                 }continue;
             }
             if(model.view()==raspberry_tv::View::Apps && !model.showHelp()) {
-                if(action==Action::Confirm || action==Action::Details) {
-                    auto arguments=spotifyPanel.activate(model.selectedRow(),action==Action::Details);
-                    const auto operation=arguments.empty()?std::string{}:arguments.front();
-                    if(arguments.empty())model.setStatusMessage("Acao indisponivel; Quadrado lista faixas de uma playlist");
-                    else if(arguments[0]=="use-local" || arguments[0]=="use-web") {
-                        spotify.cancel();spotifyPanel.useLocal(arguments[0]=="use-local");
-                        model.setAppRowCount(spotifyPanel.rows().size(),true);
+                if(action==Action::Back && !spotifyPanel.mediaMode()) {
+                    spotify.cancel();spotifyPanel.requestCancelled();spotifyPanel.showMedia();spotifyVisible=false;
+                    model.setAppRowCount(spotifyPanel.rows().size(),true);continue;
+                }
+                if(spotifyPanel.mediaMode()) {
+                    if(action==Action::Up || action==Action::Down || action==Action::Left || action==Action::Right) {spotifyPanel.navigateMedia(action);continue;}
+                    if(action==Action::Menu) {spotifyPanel.showOptions();model.setAppRowCount(spotifyPanel.rows().size(),true);continue;}
+                    if(action==Action::Confirm) {submitSpotify(spotifyPanel.activateMedia());continue;}
+                    if(action==Action::Details || action==Action::Favorites || action==Action::PreviousCategory || action==Action::NextCategory || action==Action::PreviousChannel || action==Action::NextChannel) {
+                        submitSpotify(spotifyPanel.mediaShortcut(action));continue;
                     }
-                    else if(!spotify.submit(std::move(arguments)))model.setStatusMessage("Spotify ocupado; O cancela e volta");
-                    else {spotifyPanel.requestStarted(operation);model.setStatusMessage("Solicitacao Spotify em andamento");}
+                } else if(spotifyPanel.browsing() && (action==Action::Up || action==Action::Down || action==Action::Left || action==Action::Right)) {
+                    const auto first=raspberry_tv::SpotifyPanel::ControlRows;
+                    const auto count=spotifyPanel.rows().size()>first?spotifyPanel.rows().size()-first:0;
+                    if(count) {
+                        auto row=static_cast<long long>(model.selectedRow()>=first?model.selectedRow()-first:0);
+                        row+=action==Action::Up?-1:action==Action::Down?1:action==Action::Left?-6:6;
+                        row=(row%static_cast<long long>(count)+static_cast<long long>(count))%static_cast<long long>(count);
+                        model.selectAppRow(first+static_cast<std::size_t>(row));
+                    }continue;
+                }
+                if(action==Action::Confirm || action==Action::Details) {
+                    if(!spotifyPanel.browsing() || spotifyPanel.rows().size()>raspberry_tv::SpotifyPanel::ControlRows)
+                        submitSpotify(spotifyPanel.activate(model.selectedRow(),action==Action::Details));
                     continue;
                 }
             }
@@ -258,12 +301,21 @@ int main(int argc, char** argv) {
             if(previousView==raspberry_tv::View::Apps && model.view()!=previousView) {spotify.cancel();spotifyPanel.requestCancelled();}
         }
         if(auto reply=spotify.take()) {
-            spotifyPanel.accept(*reply);model.setAppRowCount(spotifyPanel.rows().size());
+            spotifyPanel.accept(*reply,SDL_GetTicks());model.setAppRowCount(spotifyPanel.rows().size());
             if(reply->hasPage && !reply->entries.empty())model.selectAppRow(raspberry_tv::SpotifyPanel::ControlRows);
+            if(reply->code=="ready" && !reply->hasPlayback && !reply->hasPage)lastSpotifyRequest=SDL_GetTicks()-10000;
             model.setStatusMessage(reply->message);dirty=true;
         }
         if(auto result=loader.take()) {loadPending=false;model.applyPlaylist(std::move(*result),playlist);dirty=true;savePending=true;lastAction=SDL_GetTicks();}
         const auto snap=player.snapshot();
+        const auto now=SDL_GetTicks();
+        const bool mediaVisible=model.view()==raspberry_tv::View::Apps && spotifyPanel.mediaMode() && !model.showHelp() && !snap.active();
+        if(mediaVisible && !spotify.busy() && (!spotifyVisible || static_cast<std::uint32_t>(now-lastSpotifyRequest)>=10000)) {
+            auto command=spotifyPanel.statusCommand();
+            if(spotify.submit(command)){spotifyPanel.requestStarted(command.front());lastSpotifyRequest=now;dirty=true;}
+        }
+        spotifyVisible=mediaVisible;
+        if(mediaVisible && now/1000!=spotifySecond){spotifySecond=now/1000;dirty=true;}
         if(snap.state!=previousSnapshot.state || snap.status!=previousSnapshot.status || snap.buffering!=previousSnapshot.buffering || snap.volume!=previousSnapshot.volume || snap.muted!=previousSnapshot.muted || snap.audioStreams!=previousSnapshot.audioStreams) {
             dirty=true;osdUntil=SDL_GetTicks()+5000;
             if(!snap.active())model.setStatusMessage(snap.status);

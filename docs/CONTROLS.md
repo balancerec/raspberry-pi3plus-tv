@@ -38,19 +38,34 @@ Reconexão Bluetooth física, PS/Guide e mapeamento real da RC1 estão pendentes
 
 ## APLICATIVOS / Spotify nesta branch
 
-D-pad seleciona; esquerda/direita percorrem seis linhas; × executa a ação da
-linha. No modo local Soloist: estado, fila, ativar/desativar dispositivo,
-pausa/retomada, próxima/anterior e volume ±5%. × em uma faixa da fila inicia
-a faixa. A última ação alterna para o modo Web API opcional, com playlists e
-dispositivos da conta. Nesse modo, □ em playlist lista as faixas; × reproduz
-no dispositivo ativo ou seleciona um dispositivo sem autoplay.
+A tela principal agora é um player de mídia. D-pad/analógico seleciona os
+botões; × confirma o botão destacado. Ao abrir, o foco está em reproduzir/pausar.
 
-A linha de pausa/retomada local alterna com × após consultar o estado do
-Soloist. Depois de pausar, × na mesma linha retoma. O cabeçalho aguarda a
-confirmação do estado; falha ou cancelamento não mantém “Tocando” antigo.
-Confirmação de estado não comprova áudio na saída física.
+| Entrada | Ação no player Spotify |
+|---|---|
+| L1/R1 | Faixa anterior/próxima |
+| L2/R2 | Recuar/avançar 10 s, se a faixa permitir |
+| □ | Mute/restaurar o volume local anterior |
+| △ | Abrir fila local; no modo Web, playlists |
+| Options / botão Mais | Abrir ajustes e ações complementares |
+| ○ | Cancelar espera e voltar; na fila/ajustes retorna ao player |
+| PS | Voltar ao início e cancelar espera |
+| Espaço | Reproduzir/pausar |
+| Mouse | Clicar em botões; clicar no progresso busca o instante, se permitido |
 
-○ retorna e cancela a espera; PS volta ao início; Options mostra ajuda
-contextual. Esses botões não desfazem ações já aceitas pelo Spotify nem pausam
-música automaticamente. Use a linha Pausar antes de abrir IPTV quando quiser
-interromper a música. [Configuração e requisitos](SPOTIFY.md).
+Os botões de volume alteram 5%. Aleatório e repetição só ficam disponíveis
+quando o conteúdo anunciar suporte; repetição percorre desligado/contexto/faixa.
+O estado é consultado depois de cada comando local. Confirmação de comando
+não comprova som na TV. ○/PS cancelam a espera, mas não desfazem ações já
+aceitas pelo Spotify nem pausam música automaticamente.
+
+Fila e ajustes têm navegação paginada própria. × em uma faixa inicia e volta
+ao player. Em Mais é possível alternar ao Web API opcional, consultar a conta
+e escolher dispositivos; □ em uma playlist lista suas faixas. Mute, busca,
+shuffle e repetição da nova barra são locais ao Soloist. O modo Web preserva
+pausa/retomada, faixas e volume, com atualização de estado da conta.
+
+Só a tela principal visível consulta estado a cada 10 s, sem requisições
+simultâneas. O progresso usa posição/duração/velocidade reais; fica desconhecido
+após falha/cancelamento ou 20 s sem confirmação. Abrir o painel não inicia
+música automaticamente. [Configuração e requisitos](SPOTIFY.md).

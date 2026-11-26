@@ -13,6 +13,21 @@ Foram relatados canais indisponíveis e travamentos durante o uso. A alimentaç�
 inadequada é uma hipótese relevante, não uma causa exclusiva comprovada.
 Consulte [o relatório real](docs/TEST_REPORT.md) e [o checklist](docs/RELEASE_CHECKLIST.md).
 
+## Spotify com controles de mídia
+
+APLICATIVOS abre um player nativo com faixa, artista, progresso, anterior,
+reproduzir/pausar, próxima, mute e volume. Fila, dispositivo e ajustes ficam
+separados. Funciona com DualShock, teclado e mouse. Shuffle, repetição e busca
+no tempo dependem das capacidades anunciadas pelo Soloist; tempo desconhecido
+aparece como `--:--`. [Controles](docs/CONTROLS.md#aplicativos--spotify-nesta-branch).
+
+No ZIP central, `ABRIR_NO_WINDOWS.cmd` aplica esta atualização explicitamente:
+baixa a revisão pública fixada pelo pacote, verifica o manifesto, compila com
+um processo e executa CTest em um diretório novo do usuário no Pi. Só então
+altera a versão aberta pelo ícone. A versão anterior fica disponível pelo
+menu **Voltar a versão anterior** do ícone no Raspberry. Nas próximas vezes,
+abra pelo ícone normal; ele não recompila. [Detalhes](docs/INSTALLATION.md#atualizar-os-controles-de-mídia).
+
 ## Implementado
 
 - Catálogos locais M3U/M3U8: UTF-8, EXTINF/tvg metadata, grupos, filtro textual

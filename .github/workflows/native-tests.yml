@@ -15,7 +15,7 @@ jobs:
       - name: Native dependencies (CI runner only)
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends build-essential cmake pkg-config python3 libsdl2-dev libsdl2-ttf-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+          sudo apt-get install -y --no-install-recommends build-essential cmake pkg-config python3 python3-pil fonts-dejavu-core libsdl2-dev libsdl2-ttf-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good
       - name: Clean native build
         run: |
           cmake -S native -B build-ci -DCMAKE_BUILD_TYPE=Release -DBUILD_NATIVE_APP=ON -DBUILD_TESTING=ON
@@ -24,3 +24,23 @@ jobs:
         run: ctest --test-dir build-ci --output-on-failure
       - name: Legacy Python tests
         run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Export actual SDL media frames
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          from PIL import Image
+          for frame in Path('build-ci/media-ui').glob('*.bmp'):
+              Image.open(frame).save(frame.with_suffix('.png'))
+          # Public fixture only. Also expose the real render through the logs
+          # so visual review works when artifact URLs cannot be opened locally.
+          frame = Path('build-ci/media-ui/spotify-playing.png')
+          encoded = base64.b64encode(frame.read_bytes()).decode('ascii')
+          for offset in range(0, len(encoded), 4096):
+              print('RTV_UI_FRAME', offset, encoded[offset:offset + 4096])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spotify-native-media-ui
+          path: build-ci/media-ui/*.png
+          if-no-files-found: error

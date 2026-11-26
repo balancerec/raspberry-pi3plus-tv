@@ -4,6 +4,7 @@
 #include <array>
 #include <algorithm>
 #include <cstdint>
+#include <cmath>
 #include <vector>
 #include <ctime>
 #include <fstream>
@@ -43,6 +44,46 @@ std::string memoryText() {
 std::string temperatureText() {
     std::ifstream f("/sys/class/thermal/thermal_zone0/temp");long v=0;
     return (f>>v) ? std::to_string(v/1000)+" C" : "Indisponivel";
+}
+void line(SDL_Renderer* r,int x1,int y1,int x2,int y2,SDL_Color color) {
+    SDL_SetRenderDrawColor(r,color.r,color.g,color.b,color.a);
+    const int ax=display::toNative(x1),ay=display::toNative(y1),bx=display::toNative(x2),by=display::toNative(y2);
+    for(int offset=-1;offset<=1;++offset) {
+        if(std::abs(bx-ax)>=std::abs(by-ay))SDL_RenderDrawLine(r,ax,ay+offset,bx,by+offset);
+        else SDL_RenderDrawLine(r,ax+offset,ay,bx+offset,by);
+    }
+}
+void circle(SDL_Renderer* r,int x,int y,int radius,SDL_Color color,bool solid) {
+    SDL_SetRenderDrawColor(r,color.r,color.g,color.b,color.a);
+    const int cx=display::toNative(x),cy=display::toNative(y),rad=display::toNative(radius);
+    if(solid)for(int row=-rad;row<=rad;++row) {
+        const int width=static_cast<int>(std::sqrt(rad*rad-row*row));
+        SDL_RenderDrawLine(r,cx-width,cy+row,cx+width,cy+row);
+    } else {
+        std::array<SDL_Point,65> points{};
+        for(std::size_t i=0;i<points.size();++i) {const auto a=static_cast<double>(i)*6.283185307/64;points[i]={cx+static_cast<int>(rad*std::cos(a)),cy+static_cast<int>(rad*std::sin(a))};}
+        SDL_RenderDrawLines(r,points.data(),static_cast<int>(points.size()));
+    }
+}
+void triangle(SDL_Renderer* r,int x,int y,int size,bool right,SDL_Color color) {
+    SDL_SetRenderDrawColor(r,color.r,color.g,color.b,color.a);
+    const int width=display::toNative(size),base=display::toNative(x-size/3),center=display::toNative(y);
+    for(int i=0;i<width;++i) {
+        const int half=(width-i)/2,px=base+(right?i:-i);
+        SDL_RenderDrawLine(r,px,center-half,px,center+half);
+    }
+}
+void musicBeam(SDL_Renderer* r,SDL_Color color) {
+    SDL_SetRenderDrawColor(r,color.r,color.g,color.b,color.a);
+    const int left=display::toNative(178),top=display::toNative(283),width=display::toNative(50);
+    for(int x=0;x<=width;++x) {
+        const int y=top-x*display::toNative(11)/width;
+        SDL_RenderDrawLine(r,left+x,y,left+x,y+display::toNative(8));
+    }
+}
+std::string mediaTime(int ms) {
+    if(ms<0)return "--:--";
+    const int seconds=ms/1000;return std::to_string(seconds/60)+":"+(seconds%60<10?"0":"")+std::to_string(seconds%60);
 }
 }
 bool TvUi::init() {
@@ -190,6 +231,7 @@ void TvUi::home(SDL_Renderer* r,const TvModel& model) {
     }
 }
 void TvUi::content(SDL_Renderer* r,const TvModel& model) {
+    if(model.view()==View::Apps && spotify_){spotifyContent(r,model);return;}
     text(r,title_,TvModel::viewTitle(model.view()),59,134,White,1090);
     const bool listing=model.view()==View::Channels || model.view()==View::Favorites;
     std::string sub=listing ? std::to_string(model.visibleCount())+" canais" :
@@ -261,6 +303,90 @@ void TvUi::content(SDL_Renderer* r,const TvModel& model) {
         text(r,body_,"Este modulo nao oferece servicos nesta release.",96,457,Muted);
     }
 }
+void TvUi::spotifyContent(SDL_Renderer* r,const TvModel& model) {
+    if(!spotify_)return;
+    if(!spotify_->mediaMode()) {
+        text(r,heading_,spotify_->browserTitle(),64,135,White,1100);
+        text(r,small_,spotifyBusy_?"Aguarde... O cancela.":spotify_->message(),64,193,Mint,1150);
+        panel(r,{60,245,1160,377},Panel);
+        const auto& rows=spotify_->rows();
+        const auto start=spotify_->browsing()?SpotifyPanel::ControlRows:0;
+        const auto selected=std::max(start,model.selectedRow());
+        const auto first=start+(selected-start)/6*6;
+        if(rows.size()<=start)text(r,body_,"Nenhum item disponivel.",94,320,Muted,1000);
+        for(auto row=first;row<rows.size() && row<first+6;++row) {
+            const int y=266+static_cast<int>(row-first)*49;
+            if(row==selected)panel(r,{77,y,1128,45},{33,81,76,255},true);
+            text(r,body_,rows[row].title,94,y+6,rows[row].enabled?White:Muted,730);
+            text(r,small_,rows[row].detail,850,y+13,Muted,340);
+        }
+        text(r,small_,"O volta ao player  |  Esquerda/direita: pagina  |  Quadrado: faixas",94,590,Muted,1100);
+        return;
+    }
+    const auto& data=spotify_->media();
+    text(r,heading_,"SPOTIFY",64,129,Mint,600);
+    text(r,small_,spotifyBusy_?"Atualizando...":spotify_->message(),64,176,Muted,1140);
+    panel(r,{60,211,1160,336},Panel);
+    fill(r,{95,240,180,180},{11,30,35,255});border(r,{95,240,180,180},{39,96,85,255});
+    // A neutral music symbol is used when artwork is not supplied; no fake cover.
+    fill(r,{178,283,8,82},Mint);fill(r,{221,272,8,79},Mint);
+    musicBeam(r,Mint);
+    circle(r,166,365,15,Mint,true);circle(r,209,351,15,Mint,true);
+    text(r,heading_,data.track.empty()?"Escolha uma musica":data.track,318,235,White,850);
+    text(r,body_,data.artist.empty()?"Selecione Raspberry TV no Spotify":data.artist,320,280,Muted,850);
+    const bool playing=data.playback=="playing";
+    const std::string state=playing?"REPRODUZINDO":data.playback=="paused"?"PAUSADO":data.playback=="buffering"?"CARREGANDO":data.playback=="idle"?"PRONTO PARA OUVIR":"AGUARDANDO CONEXAO";
+    text(r,small_,state,320,324,playing?Mint:Muted,510);
+    text(r,small_,data.volume<0?"VOLUME --":"VOLUME "+std::to_string(data.volume)+"%",850,350,Muted,300);
+    for(std::size_t i=0;i<SpotifyPanel::MediaRects.size();++i) {
+        const auto box=SpotifyPanel::MediaRects[i];const bool selected=spotify_->mediaFocus()==i;
+        const bool enabled=spotify_->controlEnabled(i);const auto ink=enabled?(selected?Dark:White):Muted;
+        if(i>=8) {
+            panel(r,{box.x,box.y,box.w,box.h},selected?SDL_Color{33,81,76,255}:Panel,selected);
+            text(r,small_,spotify_->controlLabel(i),box.x+22,box.y+17,enabled?White:Muted,box.w-35);
+            continue;
+        }
+        const int x=box.x+box.w/2,y=box.y+box.h/2;
+        circle(r,x,y,box.w/2-2,selected?Mint:SDL_Color{26,58,64,255},true);
+        if(selected)circle(r,x,y,box.w/2+3,Mint,false);
+        if(i==2) {
+            if(playing || data.playback=="buffering") {fill(r,{x-13,y-18,9,36},ink);fill(r,{x+5,y-18,9,36},ink);}
+            else triangle(r,x,y,38,true,ink);
+        } else if(i==1 || i==3) {
+            triangle(r,x+(i==1?26:-6),y,28,i==3,ink);
+            fill(r,{x+(i==1?-16:16),y-15,4,30},ink);
+        } else if(i==6 || i==7) {
+            fill(r,{x-11,y-2,22,4},ink);if(i==7)fill(r,{x-2,y-11,4,22},ink);
+        } else if(i==5) {
+            fill(r,{x-14,y-6,8,12},ink);fill(r,{x-6,y-10,5,20},ink);fill(r,{x-1,y-14,4,28},ink);
+            if(data.volume==0){line(r,x+6,y-8,x+17,y+8,ink);line(r,x+6,y+8,x+17,y-8,ink);}
+            else {line(r,x+7,y-8,x+13,y-3,ink);line(r,x+13,y-3,x+13,y+3,ink);line(r,x+13,y+3,x+7,y+8,ink);}
+        } else if(i==0) {
+            line(r,x-15,y-9,x-7,y-9,ink);line(r,x-7,y-9,x+8,y+9,ink);line(r,x+8,y+9,x+15,y+9,ink);
+            line(r,x-15,y+9,x-7,y+9,ink);line(r,x-7,y+9,x+8,y-9,ink);line(r,x+8,y-9,x+15,y-9,ink);
+            line(r,x+11,y-13,x+16,y-9,ink);line(r,x+11,y-5,x+16,y-9,ink);
+            line(r,x+11,y+5,x+16,y+9,ink);line(r,x+11,y+13,x+16,y+9,ink);
+            if(data.shuffle==1)circle(r,x,y+23,2,selected?Dark:Mint,true);
+        } else if(i==4) {
+            line(r,x-15,y-9,x+14,y-9,ink);line(r,x+14,y-9,x+8,y-15,ink);line(r,x+14,y-9,x+8,y-3,ink);
+            line(r,x-15,y-9,x-19,y-5,ink);line(r,x-19,y-5,x-19,y+2,ink);
+            line(r,x+15,y+9,x-14,y+9,ink);line(r,x-14,y+9,x-8,y+3,ink);line(r,x-14,y+9,x-8,y+15,ink);
+            line(r,x+15,y+9,x+19,y+5,ink);line(r,x+19,y+5,x+19,y-2,ink);
+            if(data.repeat=="track")text(r,small_,"1",x-4,y-7,ink,15);
+            if(data.repeat!="off" && data.repeat!="unknown")circle(r,x,y+23,2,selected?Dark:Mint,true);
+        }
+    }
+    const auto position=spotify_->positionAt(SDL_GetTicks());
+    fill(r,{100,499,1080,5},{51,74,81,255});
+    if(position>=0 && data.duration>0) {
+        const int width=static_cast<int>(static_cast<long long>(position)*1080/data.duration);
+        if(width)fill(r,{100,499,width,5},Mint);
+        circle(r,100+width,501,4,Mint,true);
+    }
+    text(r,small_,mediaTime(position),100,515,Muted,120);
+    text(r,small_,mediaTime(data.duration),1110,515,Muted,90);
+    text(r,small_,spotify_->controlLabel(spotify_->mediaFocus())+(spotify_->controlEnabled(spotify_->mediaFocus())?"":" - indisponivel nesta faixa"),490,621,Muted,700);
+}
 void TvUi::overlay(SDL_Renderer* r,const TvModel& model) {
     if(!model.showHelp() && !model.showDetails()) return;
     fill(r,{0,0,1280,720},{0,0,0,190});
@@ -269,9 +395,9 @@ void TvUi::overlay(SDL_Renderer* r,const TvModel& model) {
         if(model.view()==View::Apps) {
             text(r,heading_,"SPOTIFY - CONTROLES",250,202,Mint,750);
             text(r,body_,"D-PAD Selecionar    X Executar    O Voltar",250,264,White,760);
-            text(r,small_,"Esquerda/direita: seis linhas por pagina",250,320,White,760);
-            text(r,small_,"Quadrado: faixas da playlist no modo Web API",250,356,White,760);
-            text(r,small_,"Volume/pausa/proxima: escolha a linha e X",250,392,White,760);
+            text(r,small_,"L1/R1: anterior/proxima  |  Quadrado: mudo",250,320,White,760);
+            text(r,small_,"Triangulo: fila  |  L2/R2: recuar/avancar 10 s",250,356,White,760);
+            text(r,small_,"Espaco: pausa/retoma  |  Mouse: botoes e progresso",250,392,White,760);
             text(r,small_,"O/PS cancela a espera; pausar e uma acao separada",250,429,White,760);
             text(r,small_,"O ou OPTIONS fecha a ajuda",252,496,Muted,760);
             return;
@@ -302,7 +428,7 @@ void TvUi::draw(SDL_Renderer* r,const TvModel& model,bool controllerConnected) {
     if(model.view()==View::Home) home(r,model);else content(r,model);
     fill(r,{0,654,1280,66},{6,18,23,245});
     fill(r,{53,654,1176,1},{39,76,80,255});
-    text(r,small_,model.view()==View::Apps ? "SPOTIFY   X EXECUTAR   O CANCELAR/VOLTAR   OPTIONS AJUDA" : model.view()==View::Channels ?
+    text(r,small_,model.view()==View::Apps ? "X CONFIRMAR  O VOLTAR  L1/R1 FAIXAS  QUADRADO MUDO  OPTIONS MAIS" : model.view()==View::Channels ?
          "X ABRIR   L1/R1 GRUPOS   L2/R2 CANAIS   O VOLTAR" :
          "X ABRIR   O VOLTAR   PS INICIO   OPTIONS AJUDA",54,673,Muted,820);
     text(r,small_,model.message(),848,673,Mint,371);

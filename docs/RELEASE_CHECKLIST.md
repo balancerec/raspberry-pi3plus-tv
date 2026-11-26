@@ -129,3 +129,22 @@ recebe aprovação física por inferência.
 - [x] Preparar atualização do instalador existente sem mudar o binário aprovado.
 - [ ] Aplicar launcher atualizado e confirmar no Raspberry após fechar SSH.
 - [ ] Confirmar música audível na saída correta.
+
+## Controles de mídia — 26/11/2026
+
+- [x] Implementar player nativo com botões em vez da lista inicial de opções.
+- [x] Separar fila e opções complementares do player.
+- [x] Testar navegação DS4, cliques, metadados, âncora de progresso e cancelamento.
+- [x] Testar mute/restauração e ações de busca/aleatório/repetição com capacidades.
+- [x] Preparar updater explícito serial, integridade e rollback sem tocar dados privados.
+- [x] Testes offline do updater, falha de build/abertura e seleção de versão aprovados.
+- [x] Suíte Python do host: 86 casos, 79 PASS e 7 SKIP POSIX.
+- [x] Build nativo SDL completo e 18/18 CTest no Linux após a mudança visual.
+- [x] Conferir a prévia principal Full HD produzida pelo renderer SDL real.
+- [ ] Aplicar a atualização no Pi e testar mídia/mouse/DualShock físicos.
+- [ ] Confirmar áudio audível e demais critérios físicos da RC1.
+
+- [x] Repetição Linux após correção visual dos símbolos: 18/18 CTest e 86/86 Python.
+- [x] ZIP/TAR com metadados derivados de release testados e relidos byte a byte.
+- [x] Manifesto real de 101 arquivos Git aceito pelo verificador do updater.
+- [x] Novo instalador Windows preparado para atualizar a UI por duplo clique.
