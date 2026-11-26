@@ -423,4 +423,30 @@ da correção atual no runner Linux. Não substitui build ARM64, Bluetooth,
 renderização física ou áudio audível no Raspberry; os testes do player usam
 fakesinks. Nenhum serviço do dispositivo foi alterado nesta publicação.
 
+### Soloist pelo ícone — implementação posterior
+
+A captura seguinte do usuário mostra a TV aberta e a mensagem “Soloist
+indisponível”. O launcher anterior iniciava apenas a UI, deixando a partida
+do cliente Spotify dependente de um terminal separado. Corrigido o fluxo:
+o ícone inicia ou reutiliza o cliente configurado, inclusive com a TV já aberta.
+Um supervisor do usuário roda em sessão separada, com lock, identidade de PID,
+duas tentativas de recuperação e pausa de 30 segundos após esgotá-las.
+O menu do ícone permite parar somente o grupo de processos gerenciado.
+
+O launcher reaproveita o helper Spotify da instalação existente e encaminha
+os comandos do painel pelo protocolo anterior. Não exige recompilar o binário
+do Pi, não transporta a chave e não apaga identidade/cache Connect. Não instala
+serviço de boot ou altera áudio global. A janela SDL e o player permanecem
+com o código anterior; a mudança está no launcher e no supervisor.
+
+Host Windows: **12/12 CTest PASS, 3,24 s**; suíte completa **70 casos, 63 PASS,
+7 SKIP, 2,218 s**. Os novos testes portáveis verificam reutilização sem nova
+leitura de chave, ausência de configuração, redaction e transporte comprimido
+Windows. Seis testes de processos Linux estão preparados para partida após
+saída do pai, concorrência, recuperação de queda, limite/backoff, cliente
+manual preservado, UI já aberta e ação de parada. Esses seis testes foram
+pulados no Windows; não são registrados como executados até passar no Linux.
+Docker não está disponível no PATH deste host. Validação física e som ainda
+dependem do dispositivo real e não foram inferidos da captura.
+
 ---

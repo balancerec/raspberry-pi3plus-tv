@@ -212,7 +212,9 @@ tem `Terminal=false`; abre o executável existente em tela cheia, com
 `~/Playlist_VLC.m3u` quando presente e a saída IPTV ALSA HDMI já usada nos
 testes (`plughw:CARD=vc4hdmi,DEV=0`). Prioriza `~/raspberry-tv-spotify`, seguido
 da instalação gerenciada, RC1 isolada e checkout original. Não compila ou
-substitui o app e não inicia o cliente Soloist, servidores ou serviços.
+substitui o app. Quando Spotify está configurado, inicia ou reutiliza o
+Soloist em segundo plano, com supervisor e tentativas limitadas de recuperação.
+Não exige recompilar o binário existente para essa integração pelo ícone.
 
 O launcher instalado fica em
 `~/.local/share/raspberry-tv/desktop-launcher/open-tv.py` (ou XDG_DATA_HOME).
@@ -234,6 +236,14 @@ Nenhum autostart é criado. Para remover, exclua o atalho Windows e a pasta
 Programs\RaspberryTV acima. No Pi, remova somente os dois `.desktop` gerados,
 identificados por `X-RaspberryTV-Launcher=1`, e o diretório desktop-launcher.
 Playlists, favoritos, configurações, chave Soloist e binários são preservados.
+
+Antes de remover o launcher com o Spotify gerenciado ativo, use **Parar
+Spotify** no menu contextual do ícone do Raspberry. A alternativa manual é
+`python3 ~/.local/share/raspberry-tv/desktop-launcher/open-tv.py --stop-soloist`.
+Pode então remover também `~/.local/state/raspberry-tv/soloist-runtime`.
+Esse diretório é apenas do supervisor; preserve `~/.local/share/raspberry-tv/soloist`,
+que contém a identidade e a sessão Connect. Nenhum serviço do sistema exige
+instalação, desinstalação ou rollback por essa mudança.
 
 ## Pacote central de fontes
 

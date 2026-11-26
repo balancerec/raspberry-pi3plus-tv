@@ -92,8 +92,11 @@ saúde; remova caminhos privados, tokens e credenciais.
 
 - Soloist ausente/build expirado: obtenha o build atual ARM64 no link oficial
   de [SPOTIFY.md](SPOTIFY.md), fora do repositório. Não há download automático.
-- Nenhum estado local: inicie `bash scripts/spotify.sh soloist-run` em outro
-  terminal e selecione Raspberry TV em um Spotify da mesma rede.
+- Nenhum estado local: abra novamente pelo ícone atualizado Raspberry TV.
+  Ele inicia o cliente configurado em segundo plano, mesmo com a UI já aberta.
+  O painel também tenta recuperar o backend antes de comandos locais. Depois
+  selecione Raspberry TV no Spotify. Após três falhas do processo, aguarde
+  30 segundos antes de tentar novamente; a TV continua utilizável.
 - Soloist sem som: ele usa PipeWire ou PulseAudio, enquanto o IPTV pode usar
   ALSA. `--audio-sink alsasink` do IPTV não configura a saída Soloist. Verifique
   `wpctl status`/`pactl info` se disponíveis. Não mudamos serviços globais.

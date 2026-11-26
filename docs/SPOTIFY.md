@@ -51,13 +51,40 @@ arquivos do projeto ou no chat. Se não houver terminal capaz de ocultar a
 entrada, a operação é recusada. O segundo campo é um nó PipeWire opcional;
 deixe vazio para usar a saída padrão do usuário, sem alterar sua configuração.
 
-O launcher mantém o Soloist em primeiro plano, com nome **Raspberry TV**,
+O comando manual `soloist-run` mantém o Soloist em primeiro plano, com nome **Raspberry TV**,
 volume inicial 35%, cache limitado a 100 MiB e API vinculada apenas a
 `127.0.0.1`, em porta dinâmica. Em um Spotify da mesma rede, selecione
 **Raspberry TV** em dispositivos e confirme o som. Ctrl+C encerra o processo
-iniciado pelo launcher. Não é iniciado automaticamente pela UI ou pelo boot.
+iniciado por esse comando. No uso diário, prefira o ícone **Raspberry TV**:
+ele inicia o cliente configurado em segundo plano, sem outro terminal.
 
-Em outro terminal da mesma sessão de usuário, execute a TV normalmente:
+### Abertura pelo ícone e recuperação
+
+O launcher consulta a API local antes de iniciar o Soloist. Reutiliza um
+cliente existente, inclusive um iniciado manualmente; sem cliente acessível,
+usa a configuração privada já salva e inicia um supervisor do usuário em
+sessão separada. O cliente permanece disponível após fechar a conexão SSH.
+Isso também ocorre ao clicar no ícone quando a interface TV já está aberta.
+
+O supervisor mantém uma única instância, tenta recuperar até duas quedas
+com esperas de 1 e 3 segundos e aplica pausa de 30 segundos se as tentativas
+se esgotarem. O painel utiliza um adaptador compatível com o protocolo atual
+para tentar iniciar o cliente quando uma ação local encontra o backend parado.
+Nenhum comando de reprodução é enviado apenas por iniciar o cliente.
+
+No Raspberry, o menu contextual do ícone oferece **Parar Spotify**. Essa ação
+encerra somente o grupo de processos criado pelo supervisor, após verificar
+usuário, PID e instante de criação. Clientes iniciados manualmente são
+preservados. Estado de supervisão fica em
+`~/.local/state/raspberry-tv/soloist-runtime` (ou XDG_STATE_HOME), com diretório
+0700 e arquivos 0600. Chave, identidade Connect e cache permanecem nos mesmos
+locais anteriores. Nenhum serviço de boot é instalado.
+
+Se a instalação não tiver chave ou binário válidos, a TV continua disponível
+e o painel apresenta falha resumida. Cliente online não comprova áudio na TV;
+o diagnóstico de PipeWire/PulseAudio continua necessário quando há silêncio.
+
+O comando abaixo continua disponível para execução manual e diagnóstico:
 
 ```bash
 DISPLAY=:0 bash scripts/run-native.sh --fullscreen \
