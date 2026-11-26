@@ -6,15 +6,18 @@
 #include "tv/playlist_loader.hpp"
 #include "tv/state_writer.hpp"
 #include "tv/channel_queue.hpp"
+#include "tv/spotify.hpp"
 #include <filesystem>
 #include <vector>
 #include <SDL.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <csignal>
 #include <cstring>
 #include <ctime>
 #include <string>
+#include <utility>
 
 using raspberry_tv::Action;
 using raspberry_tv::Axis;
@@ -150,6 +153,13 @@ int main(int argc, char** argv) {
     if(!error.empty())model.setStatusMessage(error);
     raspberry_tv::StateWriter writer(stateDirectory);
     raspberry_tv::PlaylistLoader loader;
+    char* executableDirectory=SDL_GetBasePath();
+    const auto defaultSpotifyHelper=(std::filesystem::u8path(executableDirectory?executableDirectory:"./")/".."/"integrations"/"spotify"/"spotify_client.py").lexically_normal().u8string();
+    if(executableDirectory)SDL_free(executableDirectory);
+    const auto* configuredSpotifyHelper=std::getenv("RASPBERRY_TV_SPOTIFY_HELPER");
+    raspberry_tv::SpotifyWorker spotify(raspberry_tv::makeSpotifyRunner(configuredSpotifyHelper?configuredSpotifyHelper:defaultSpotifyHelper));
+    raspberry_tv::SpotifyPanel spotifyPanel;
+    model.setAppRowCount(spotifyPanel.rows().size());
     if(!playlist.empty()){loader.start(playlist);model.setStatusMessage("Carregando playlist local...");}
     raspberry_tv::TvPlayer player;
     const bool playerReady=player.initialize(window,settings);
@@ -228,8 +238,28 @@ int main(int argc, char** argv) {
                     case 4:running=false;break;
                 }continue;
             }
+            if(model.view()==raspberry_tv::View::Apps && !model.showHelp()) {
+                if(action==Action::Confirm || action==Action::Details) {
+                    auto arguments=spotifyPanel.activate(model.selectedRow(),action==Action::Details);
+                    if(arguments.empty())model.setStatusMessage("Acao indisponivel; Quadrado lista faixas de uma playlist");
+                    else if(arguments[0]=="use-local" || arguments[0]=="use-web") {
+                        spotify.cancel();spotifyPanel.useLocal(arguments[0]=="use-local");
+                        model.setAppRowCount(spotifyPanel.rows().size(),true);
+                    }
+                    else if(!spotify.submit(std::move(arguments)))model.setStatusMessage("Spotify ocupado; O cancela e volta");
+                    else model.setStatusMessage("Solicitacao Spotify em andamento");
+                    continue;
+                }
+            }
+            const auto previousView=model.view();
             if(action==Action::Confirm && model.selectedChannel() && !model.showHelp() && !model.showDetails() && !loadPending)beginPlayback();
             else model.dispatch(action);
+            if(previousView==raspberry_tv::View::Apps && model.view()!=previousView)spotify.cancel();
+        }
+        if(auto reply=spotify.take()) {
+            spotifyPanel.accept(*reply);model.setAppRowCount(spotifyPanel.rows().size());
+            if(reply->hasPage && !reply->entries.empty())model.selectAppRow(raspberry_tv::SpotifyPanel::ControlRows);
+            model.setStatusMessage(reply->message);dirty=true;
         }
         if(auto result=loader.take()) {loadPending=false;model.applyPlaylist(std::move(*result),playlist);dirty=true;savePending=true;lastAction=SDL_GetTicks();}
         const auto snap=player.snapshot();
@@ -246,6 +276,7 @@ int main(int argc, char** argv) {
         const bool showOsd=snap.active() && settings.showOsd && (playbackHelp || snap.state!=raspberry_tv::PlaybackState::Playing || static_cast<std::int32_t>(osdUntil-SDL_GetTicks())>0);
         if(dirty) {
             ui.setSettings(settings);
+            ui.setSpotify(&spotifyPanel,spotify.busy());
             if(!snap.active())ui.draw(renderer,model,controller!=nullptr);
             ui.drawOsd(window,queue.current(model),snap,playbackHelp,showOsd);
             dirty=false;
@@ -253,5 +284,5 @@ int main(int argc, char** argv) {
     }
     // Join the GStreamer owner before destroying any X11 drawable.
     const auto snap=player.snapshot();model.captureState(state);if(playerReady){settings.volume=snap.volume;settings.muted=snap.muted;}writer.submit(state);
-    player.shutdown();closeController(input);ui.close();SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
+    spotify.shutdown();player.shutdown();closeController(input);ui.close();SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
 }

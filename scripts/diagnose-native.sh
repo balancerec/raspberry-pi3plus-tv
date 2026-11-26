@@ -5,7 +5,7 @@ printf 'Raspberry TV Native diagnostics\n'
 uname -sm
 printf 'Session: %s; display set: %s\n' "${XDG_SESSION_TYPE:-unknown}" "$([ -n "${DISPLAY:-}" ] && printf yes || printf no)"
 missing=0
-for tool in cmake ctest c++ pkg-config gst-inspect-1.0; do
+for tool in cmake ctest c++ pkg-config gst-inspect-1.0 python3; do
   if ! command -v "$tool" >/dev/null; then printf 'MISSING tool: %s\n' "$tool"; missing=1; fi
 done
 if command -v pkg-config >/dev/null; then

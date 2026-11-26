@@ -200,6 +200,7 @@ void TvUi::content(SDL_Renderer* r,const TvModel& model) {
         std::string group=model.activeGroup();
         sub+="   |   GRUPO: "+group+"  (L1/R1)";
     }
+    if(model.view()==View::Apps && spotify_)sub=spotify_->nowPlaying();
     text(r,body_,sub,64,214,Mint,1080);
     panel(r,{60,263,1160,358},Panel);
     if(listing) {
@@ -225,7 +226,18 @@ void TvUi::content(SDL_Renderer* r,const TvModel& model) {
         }
         return;
     }
-    if(model.view()==View::System) {
+    if(model.view()==View::Apps && spotify_) {
+        text(r,small_,spotifyBusy_?"Spotify: aguardando resposta... O cancela e volta.":spotify_->message(),82,275,Mint,1110);
+        const auto& rows=spotify_->rows();
+        const auto first=(model.selectedRow()/6)*6;
+        for(auto row=first;row<rows.size() && row<first+6;++row) {
+            const int y=316+static_cast<int>(row-first)*44;
+            if(row==model.selectedRow())panel(r,{77,y,1128,40},{33,81,76,255},true);
+            text(r,body_,rows[row].title,94,y+5,rows[row].enabled?White:Muted,740);
+            text(r,small_,rows[row].detail,854,y+10,Muted,330);
+        }
+        text(r,small_,std::to_string(model.selectedRow()+1)+" / "+std::to_string(rows.size())+"   Direita/esquerda: pagina   Quadrado: faixas da playlist",94,593,Muted,1090);
+    } else if(model.view()==View::System) {
         text(r,heading_,"STATUS DO DISPOSITIVO",94,299,White);
         text(r,body_,"Memoria: "+memoryText(),96,363,Mint);
         text(r,body_,"Plataforma de destino: Raspberry Pi / ARM64",96,406,White);
@@ -254,6 +266,16 @@ void TvUi::overlay(SDL_Renderer* r,const TvModel& model) {
     fill(r,{0,0,1280,720},{0,0,0,190});
     panel(r,{212,165,856,385},{18,41,51,255});
     if(model.showHelp()) {
+        if(model.view()==View::Apps) {
+            text(r,heading_,"SPOTIFY - CONTROLES",250,202,Mint,750);
+            text(r,body_,"D-PAD Selecionar    X Executar    O Voltar",250,264,White,760);
+            text(r,small_,"Esquerda/direita: seis linhas por pagina",250,320,White,760);
+            text(r,small_,"Quadrado: faixas da playlist no modo Web API",250,356,White,760);
+            text(r,small_,"Volume/pausa/proxima: escolha a linha e X",250,392,White,760);
+            text(r,small_,"O/PS cancela a espera; pausar e uma acao separada",250,429,White,760);
+            text(r,small_,"O ou OPTIONS fecha a ajuda",252,496,Muted,760);
+            return;
+        }
         text(r,heading_,"CONTROLE PS4 - COMANDOS",250,202,Mint,750);
         text(r,body_,"D-PAD Navegar    X Reproduzir    O Voltar",250,264,White,760);
         text(r,small_,"L1/R1 Filtrar grupos na lista de TV ao vivo",250,320,White,760);
@@ -280,7 +302,7 @@ void TvUi::draw(SDL_Renderer* r,const TvModel& model,bool controllerConnected) {
     if(model.view()==View::Home) home(r,model);else content(r,model);
     fill(r,{0,654,1280,66},{6,18,23,245});
     fill(r,{53,654,1176,1},{39,76,80,255});
-    text(r,small_,model.view()==View::Channels ?
+    text(r,small_,model.view()==View::Apps ? "SPOTIFY   X EXECUTAR   O CANCELAR/VOLTAR   OPTIONS AJUDA" : model.view()==View::Channels ?
          "X ABRIR   L1/R1 GRUPOS   L2/R2 CANAIS   O VOLTAR" :
          "X ABRIR   O VOLTAR   PS INICIO   OPTIONS AJUDA",54,673,Muted,820);
     text(r,small_,model.message(),848,673,Mint,371);

@@ -1,0 +1,26 @@
+name: Native CMake and offline integration tests
+on:
+  push:
+    branches: [feature/native-tv-release-v10, feature/native-spotify-integration]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native dependencies (CI runner only)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential cmake pkg-config python3 libsdl2-dev libsdl2-ttf-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+      - name: Clean native build
+        run: |
+          cmake -S native -B build-ci -DCMAKE_BUILD_TYPE=Release -DBUILD_NATIVE_APP=ON -DBUILD_TESTING=ON
+          cmake --build build-ci --parallel 2
+      - name: CTest including private storage and native process cancellation
+        run: ctest --test-dir build-ci --output-on-failure
+      - name: Legacy Python tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py'

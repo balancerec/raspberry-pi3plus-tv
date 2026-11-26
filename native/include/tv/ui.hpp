@@ -1,6 +1,7 @@
 #pragma once
 #include "tv/menu.hpp"
 #include "tv/playback_state.hpp"
+#include "tv/spotify.hpp"
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <map>
@@ -13,6 +14,7 @@ public:
     void draw(SDL_Renderer*,const TvModel&,bool controllerConnected);
     void drawOsd(SDL_Window* parent,const Channel*,const PlayerSnapshot&,bool help,bool visible);
     void setSettings(const UserSettings& settings) {settings_=settings;}
+    void setSpotify(const SpotifyPanel* panel, bool busy) {spotify_=panel;spotifyBusy_=busy;}
     void close();
     ~TvUi(){close();}
 private:
@@ -22,6 +24,8 @@ private:
     SDL_Window* osdWindow_=nullptr;SDL_Renderer* osdRenderer_=nullptr;
     bool osdVisible_=false;
     UserSettings settings_;
+    const SpotifyPanel* spotify_ = nullptr;
+    bool spotifyBusy_ = false;
     TTF_Font* title_=nullptr;TTF_Font* heading_=nullptr;TTF_Font* body_=nullptr;TTF_Font* small_=nullptr;
     void text(SDL_Renderer*,TTF_Font*,const std::string&,int,int,SDL_Color,int maxWidth=1200);
     void panel(SDL_Renderer*,SDL_Rect,SDL_Color,bool selected=false);
