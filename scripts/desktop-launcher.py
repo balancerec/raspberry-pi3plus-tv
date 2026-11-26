@@ -106,9 +106,11 @@ def install():
              "Comment=TV ao vivo e aplicativos na televisao\n"
              "Exec=python3 " + desktop_argument(script) + " --launch\n"
              "Icon=" + str(icon) + "\nTerminal=false\nStartupNotify=false\n"
-             "Categories=AudioVideo;Player;\nActions=StopSpotify;\n" + ENTRY_MARKER + "\n"
+             "Categories=AudioVideo;Player;\nActions=StopSpotify;Rollback;\n" + ENTRY_MARKER + "\n"
              "\n[Desktop Action StopSpotify]\nName=Parar Spotify\n"
-             "Exec=python3 " + desktop_argument(script) + " --stop-soloist\n")
+             "Exec=python3 " + desktop_argument(script) + " --stop-soloist\n"
+             "\n[Desktop Action Rollback]\nName=Voltar a versao anterior\n"
+             "Exec=python3 " + desktop_argument(script) + " --rollback-native\n")
     applications = directory.parent.parent / "applications"
     for parent in (desktop_directory(), applications):
         target = parent / "raspberry-tv-native.desktop"
@@ -125,10 +127,95 @@ def install():
 
 
 def projects():
-    return [home_file("raspberry-tv-spotify"),
-            home_file(".local/opt/raspberry-tv/current"),
-            home_file("raspberry-tv-release-v10/raspberry-tv-v10"),
-            home_file("raspberry-tv-iptv")]
+    defaults = [home_file("raspberry-tv-spotify"),
+                home_file(".local/opt/raspberry-tv/current"),
+                home_file("raspberry-tv-release-v10/raspberry-tv-v10"),
+                home_file("raspberry-tv-iptv")]
+    preferred = preferred_projects()
+    return preferred + [path for path in defaults if path not in preferred]
+
+
+def preferred_projects(data=None):
+    pointer = launcher_dir() / "project.private.json"
+    try:
+        if data is None:
+            if pointer.is_symlink() or not pointer.is_file() or pointer.stat().st_size > 4096:
+                return []
+            data = json.loads(pointer.read_text())
+        path = Path(data["current"])
+        home = Path.home().resolve()
+        if not path.is_absolute() or not path.resolve().is_relative_to(home):
+            return []
+        known = {home_file(name).resolve() for name in ("raspberry-tv-spotify", ".local/opt/raspberry-tv/current",
+                 "raspberry-tv-release-v10/raspberry-tv-v10", "raspberry-tv-iptv")}
+        marker = path / "managed-release.json"
+        if path.resolve() not in known:
+            if marker.is_symlink() or not marker.is_file() or marker.stat().st_size > 4096:
+                return []
+            metadata = json.loads(marker.read_text())
+            if not isinstance(metadata, dict) or metadata.get("owner") != "Raspberry TV native update v1":
+                return []
+        if not (path / "build-native/raspberry-tv-native").is_file() and not (path / "bin/raspberry-tv-native").is_file():
+            return []
+        return [path]
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
+
+
+def stop_native():
+    targets = {(project / relative).resolve() for project in projects()
+               for relative in ("build-native/raspberry-tv-native", "bin/raspberry-tv-native")}
+    processes = []
+    for process in Path("/proc").iterdir():
+        if not process.name.isdigit():
+            continue
+        try:
+            if process.stat().st_uid != os.getuid() or (process / "exe").resolve() not in targets:
+                continue
+            identity = (process / "stat").read_text().rsplit(") ", 1)[1].split()[19]
+            os.kill(int(process.name), signal.SIGINT)
+            processes.append((process, identity))
+        except (OSError, ValueError, IndexError):
+            continue
+    deadline = time.monotonic() + 8
+    while processes:
+        remaining = []
+        for process, identity in processes:
+            try:
+                fields = (process / "stat").read_text().rsplit(") ", 1)[1].split()
+                if fields[19] == identity and fields[0] != "Z":
+                    remaining.append((process, identity))
+            except (OSError, IndexError):
+                pass
+        if not remaining:
+            return
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Feche a Raspberry TV pelo menu e tente novamente; nenhum processo foi forcado.")
+        processes = remaining
+        time.sleep(.1)
+
+
+def rollback_native():
+    directory = managed_launcher_directory()
+    pointer = directory / "project.private.json"
+    if pointer.is_symlink() or not pointer.is_file() or pointer.stat().st_size > 4096:
+        raise RuntimeError("Nenhuma atualizacao com rollback disponivel.")
+    data = json.loads(pointer.read_text())
+    previous = data.get("previous")
+    if not previous:
+        raise RuntimeError("Nenhuma versao anterior registrada.")
+    # Validate the previous destination with the same rules as a normal launch.
+    old = pointer.read_bytes()
+    candidate = json.dumps({"current": previous, "previous": data.get("current", "")}).encode()
+    if not preferred_projects({"current": previous}):
+        raise RuntimeError("Versao anterior indisponivel; selecao atual preservada.")
+    stop_native()
+    write_owned(pointer, candidate)
+    try:
+        launch()
+    except Exception:
+        write_owned(pointer, old)
+        raise
 
 
 def session_environment():
@@ -423,6 +510,7 @@ def main():
     parser.add_argument("--soloist-worker", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--soloist-detach", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--stop-soloist", action="store_true")
+    parser.add_argument("--rollback-native", action="store_true")
     parser.add_argument("--project", type=Path)
     args = parser.parse_args()
     if os.geteuid() == 0:
@@ -446,6 +534,12 @@ def main():
         if args.stop_soloist:
             project = args.project or next((p for p in projects() if (p / "integrations/spotify/spotify_client.py").is_file()), Path.home())
             SoloistSession(project).stop()
+            return 0
+        if args.rollback_native:
+            directory = managed_launcher_directory()
+            with (directory / "update.lock").open("a") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                rollback_native()
             return 0
         if args.launch:
             launch()

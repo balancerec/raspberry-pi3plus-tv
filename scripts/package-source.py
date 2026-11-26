@@ -44,7 +44,8 @@ def main():
                 files[name] = data
     required = ("ABRIR_NO_WINDOWS.cmd", "integrations/spotify/spotify_client.py",
                 "scripts/spotify.sh", "scripts/desktop-launcher.py", "scripts/desktop-windows.py",
-                "scripts/install-desktop-windows.cmd", "native/raspberry-tv.ico", "docs/SPOTIFY.md")
+                "scripts/install-desktop-windows.cmd", "scripts/desktop-native-update.py",
+                "native/raspberry-tv.ico", "docs/SPOTIFY.md")
     for name in required:
         if name not in files:
             raise RuntimeError("Incomplete central bundle: " + name)
@@ -53,6 +54,17 @@ def main():
         digest, name = row.split("  ", 1)
         if hashlib.sha256(files[name]).hexdigest() != digest:
             raise RuntimeError("Source checksum mismatch: " + name)
+    release = {"commit": revision, "manifest_sha256": hashlib.sha256(files["SHA256SUMS.txt"]).hexdigest()}
+    files["scripts/release.json"] = (json.dumps(release, indent=2) + "\n").encode("utf-8")
+    # Derived metadata pins the public source used by the explicit one-click
+    # update. It is generated after commit creation to avoid a circular hash.
+    expanded = io.BytesIO(raw)
+    with tarfile.open(fileobj=expanded, mode="a") as archive:
+        entry = tarfile.TarInfo(prefix + "scripts/release.json")
+        entry.size = len(files["scripts/release.json"])
+        entry.mode = 0o644
+        archive.addfile(entry, io.BytesIO(files["scripts/release.json"]))
+    raw = expanded.getvalue()
     output = (args.output_dir or root / "dist").resolve()
     output.mkdir(parents=True, exist_ok=True)
     stem = "raspberry-tv-central-1.0.0-rc1-" + revision[:12] + "-source"
@@ -79,13 +91,14 @@ def main():
     for path in (tar_path, zip_path):
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         path.with_name(path.name + ".sha256").write_text(digest + "  " + path.name + "\n", encoding="ascii")
-    metadata = {"commit": revision, "status": "release-candidate", "source_files": len(files),
+    metadata = {"commit": revision, "status": "release-candidate", "source_files": len(files) - 1,
+                "generated_release_metadata": True, "includes_explicit_native_updater": True,
                 "verified_source_checksums": len(checksums), "includes_spotify": True,
                 "includes_desktop_launchers": True, "includes_native_binary": False,
                 "includes_official_soloist_binary": False, "includes_credentials": False,
                 "spotify_physical_audio_validated": False}
     metadata_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
-    print("Central bundle verified:", len(files), "Git files;", len(checksums), "source checksums.")
+    print("Central bundle verified:", len(files) - 1, "Git files + release metadata;", len(checksums), "source checksums.")
     print("Commit:", revision)
     print("ZIP:", zip_path)
     print("TAR:", tar_path)

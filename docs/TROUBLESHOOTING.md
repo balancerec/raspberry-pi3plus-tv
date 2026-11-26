@@ -107,3 +107,19 @@ saúde; remova caminhos privados, tokens e credenciais.
   reconexões automáticas infinitas. Sessão revogada: execute login novamente.
 - Não publique arquivos privados, tokens, argv do daemon ou logs brutos.
   A UI recebe apenas estado/metadados e mensagens sanitizadas.
+
+## Controles de mídia Spotify
+
+- Ainda aparece a lista antiga: ela pertence ao executável antigo. Execute o
+  atualizador explícito do pacote central e aguarde CMake/CTest. A atualização
+  só do helper não troca a interface compilada. Depois abra o ícone normal.
+- `--:--` ou botão desabilitado: posição/duração ou a capacidade daquela ação
+  não foram informadas pelo Soloist. Atualizar tenta obter um novo snapshot.
+  Não simulamos tempo nem enviamos busca/aleatório/repetição sem suporte.
+- Comando em andamento: ○ cancela a espera; PS retorna ao início. Comandos
+  já aceitos pelo Spotify podem ter sido executados. A fila não acumula cliques.
+- Novo build não abre: a seleção anterior é restaurada; use o ícone para abrir
+  novamente. Também existe Voltar a versão anterior no menu contextual do Pi.
+- Não houve som: a barra de mídia não configura a saída de áudio. Preserve o
+  diagnóstico PipeWire/PulseAudio descrito em SPOTIFY.md; volume confirmado
+  pelo Soloist ainda não prova áudio audível no hardware.

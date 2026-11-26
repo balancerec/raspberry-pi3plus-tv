@@ -476,3 +476,24 @@ atualização será feita pelo instalador na sessão normal do usuário. O
 agente não executou SSH, não iniciou o Soloist real e não confirmou áudio.
 
 ---
+
+### Controles de mídia — 26/11/2026
+
+O pedido do usuário compara o painel de onze opções com uma barra de mídia.
+A implementação agora apresenta um player SDL com ações, tempo e volume;
+fila e opções complementares têm telas próprias. A UI Full HD e o player
+IPTV/OSD existentes foram preservados.
+
+Host Windows: compilação limpa portável Release/MSVC no diretório isolado
+`build-spotify-controls-final`: **12/12 CTest PASS, 3,28 s** antes do updater.
+Após adicionar seus testes, a suíte Python completa executou **86 casos,
+79 PASS e 7 SKIP POSIX, 2,039 s**. Os casos novos verificam protocolo opt-in,
+âncora/velocidade/expiração do tempo, foco DS4/mouse, mute/restauração,
+capacidade e confirmação de busca/shuffle/repeat, manifesto/caminhos seguros,
+preservação da versão anterior em falha e rollback. O payload Windows foi
+decodificado em teste sem SSH. Sintaxe PowerShell do instalador conferida
+sem executar a instalação. Novos CMake/CTest e render SDL Linux aguardam CI.
+
+O updater não foi executado contra o Raspberry nesta etapa. O acesso SSH do
+agente está indisponível; a entrega prepara a ação explícita do usuário.
+Nenhuma reprodução ou medição física de áudio/FPS/alimentação foi inventada.

@@ -1,5 +1,19 @@
 # Changelog
 
+## Não lançado — controles de mídia — 2026-11-26
+
+- Player SDL Full HD em APLICATIVOS substitui a lista de opções na abertura:
+  faixa/artista, progresso, pausa/retomada, faixas, volume/mute e capacidades
+  reais de busca, aleatório e repetição. Fila e ajustes ficam separados.
+- DualShock, teclado e cliques usam os mesmos controles; leitura de estado
+  limitada à tela visível, sem progresso fictício ou autoplay ao abrir.
+- Protocolo opcional de mídia preserva os clientes antigos; mute armazena
+  somente o volume de restauração em arquivo privado.
+- Atualizador manual pelo pacote central: fonte pública fixada e verificada,
+  build serial/CTest em pasta nova, seleção atômica e rollback pelo ícone.
+- Testes de comandos/estados, renderização SDL real e integridade/rollback.
+  Aplicação e áudio físicos no Pi permanecem pendentes.
+
 ## Não lançado — pacote central — 2026-11-26
 
 - Soloist inicia pelo ícone junto à TV, inclusive quando a UI já está aberta;

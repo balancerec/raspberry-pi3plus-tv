@@ -51,8 +51,8 @@ não enviam buffering, portanto OPENING → PLAYING é válido.
 ## UI e vídeo
 
 Renderização lógica e rasterização continuam 1920×1080; coordenadas de design
-são multiplicadas por 1,5. HDMI permanece sob controle do XFCE. Redraw somente
-por alterações/eventos/minuto. Texto UTF-8 é truncado com reticências por largura,
+são multiplicadas por 1,5. HDMI permanece sob controle do XFCE. Redraw por alterações/eventos/minuto; no player Spotify visível,
+no máximo 1 Hz para o progresso. Texto UTF-8 é truncado com reticências por largura,
 sem reduzir a fonte para acomodar strings enormes. Cache: até 192 texturas e
 aproximadamente 12 MiB de pixels, compartilhado entre os renderers da UI/OSD.
 
@@ -114,3 +114,19 @@ portando Bearer. Consultas são paginadas, sem baixar toda a biblioteca e sem
 polling contínuo. A chave Soloist tem armazenamento separado dos tokens OAuth.
 Segredos reais não integram código/testes/pacotes. Limitação de argv do
 executável Soloist, áudio e instruções estão em [SPOTIFY.md](SPOTIFY.md).
+
+## Player Spotify e atualização explícita — 26/11/2026
+
+SpotifyPanel mantém foco, retângulos de interação e snapshot de mídia sem SDL.
+TvUi desenha os mesmos retângulos em Full HD; main encaminha DS4, teclado e
+cliques já escalados pelo SDL ao design existente. O mesmo worker serializado
+executa os controles, com leitura posterior do estado. `--media` negocia os
+registros opcionais sem quebrar o protocolo antigo. Posição é extrapolada do
+último snapshot apenas enquanto playing e por até 20 s; erro cancela a linha
+de tempo. Não há novo pipeline de áudio ou alteração na composição IPTV/OSD.
+
+O updater é uma operação manual separada da abertura normal. Recebe somente
+fontes públicas/identificador da release, verifica o manifesto e constrói em
+diretório novo. O launcher seleciona o build via ponteiro privado atômico,
+com o anterior registrado para rollback. O pacote não redistribui Soloist e
+a configuração existente permanece no Pi. Nenhum serviço de boot é criado.

@@ -248,8 +248,8 @@ instalação, desinstalação ou rollback por essa mudança.
 ## Pacote central de fontes
 
 `python scripts/package-source.py --output-dir dist` gera ZIP e TAR versionados
-pelo commit, seus SHA-256 e um JSON de procedência. Exporta apenas arquivos do
-Git, exige checkout limpo, confere SHA256SUMS.txt e recusa configurações
+pelo commit, seus SHA-256 e um JSON de procedência. Exporta arquivos do
+Git e gera o identificador público `scripts/release.json`; exige checkout limpo, confere SHA256SUMS.txt e recusa configurações
 privadas, chaves Soloist e playlists fora das fixtures de teste. Entregas
 existentes não são sobrescritas. Não inclui binários nativos ou Soloist.
 TV, Spotify, atalhos, diagnóstico, testes e documentação ficam no mesmo pacote.
@@ -258,3 +258,38 @@ O empacotamento nativo ARM64 inclui também o launcher Windows, o instalador
 do atalho, o ícone e o launcher XFCE; copiar/extrair esse pacote no Windows
 permite usar o instalador em `scripts`. A instalação do atalho permanece uma
 ação manual, sem hook de instalação do CMake ou autostart.
+
+## Atualizar os controles de mídia
+
+No ZIP central completo, extraia a pasta e execute `ABRIR_NO_WINDOWS.cmd`.
+O instalador detecta `scripts/release.json`, gerado pelo empacotador com o
+commit e o SHA-256 do manifesto. A janela SSH pode pedir a senha do Pi;
+aguarde nela a compilação e os testes. Nenhum comando precisa ser digitado.
+O instalador anterior sem esse arquivo continua sendo apenas um launcher.
+
+A atualização baixa somente o código público daquela revisão, por HTTPS,
+com limite de 4 MiB/40 s. Valida cada arquivo e recusa links/caminhos externos.
+O destino no Pi é
+`/home/balancerec/.local/opt/raspberry-tv-media/releases/<commit>/`.
+O build usa `--parallel 1`, sem instalar dependências, usar sudo ou alterar
+serviços. Falha de download, compilação ou testes preserva a seleção anterior.
+Mantenha a janela de atualização aberta até terminar; não há benchmark de carga.
+
+Depois de CTest aprovado, fecha apenas a UI nativa identificada do mesmo
+usuário com SIGINT, espera até 8 s e ativa o novo build pelo ícone. Se a UI
+não encerrar, a atualização pede que ela seja fechada pelo menu; não usa kill
+forçado. Playlists, favoritos, chave, identidade Connect e cache não são copiados
+nem apagados. A seleção fica em
+`/home/balancerec/.local/share/raspberry-tv/desktop-launcher/project.private.json`.
+Essa seleção tem prioridade sobre os diretórios anteriores na abertura normal.
+
+**Rollback:** no desktop do Raspberry, clique com o botão direito em Raspberry
+TV e escolha **Voltar a versão anterior**. A ação fecha a UI atual de modo
+normal e troca a seleção para o build anterior, preservando ambas as pastas.
+Se a nova UI falhar imediatamente na abertura, a seleção anterior é restaurada.
+Para remover uma release antiga depois de testá-la, feche a aplicação e remova
+somente o diretório do commit identificado por `managed-release.json`; nunca
+remova dados XDG do Spotify ou a instalação aprovada original.
+
+A aplicação da atualização e seu áudio no Pi continuam pendentes até execução
+real. O agente não teve uma conexão SSH utilizável nesta etapa.
