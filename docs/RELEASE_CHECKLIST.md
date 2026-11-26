@@ -115,3 +115,17 @@ recebe aprovação física por inferência.
 - [x] CI Linux do pacote central: aplicação completa compilada, 15/15 CTest e
   60/60 testes Python aprovados no commit 64aa777.
 - [ ] Novo build completo ARM64 e confirmação física do áudio Spotify.
+
+## Soloist pelo ícone — 26/11/2026
+
+- [x] Cliente configurado inicia pelo ícone em sessão independente do terminal.
+- [x] Implementar reutilização, locks de instância, duas recuperações e cooldown.
+- [x] Implementar parada apenas do grupo gerenciado com identidade de PID verificada.
+- [x] Adaptador mantém o protocolo do binário existente e evita recompilação no Pi.
+- [x] Transporte Windows comprimido conferido; nenhum segredo é transportado.
+- [x] Host: 12/12 CTest e 70 casos Python, com skips POSIX explicitamente registrados.
+- [x] Linux CI: 16/16 CTest e 70/70 testes Python, incluindo os seis casos de
+  processos/supervisão, aprovados após a correção no commit 237ddc1.
+- [x] Preparar atualização do instalador existente sem mudar o binário aprovado.
+- [ ] Aplicar launcher atualizado e confirmar no Raspberry após fechar SSH.
+- [ ] Confirmar música audível na saída correta.

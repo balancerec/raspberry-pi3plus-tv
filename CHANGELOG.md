@@ -2,6 +2,9 @@
 
 ## Não lançado — pacote central — 2026-11-26
 
+- Soloist inicia pelo ícone junto à TV, inclusive quando a UI já está aberta;
+  supervisor independente do terminal, instância única, recuperação limitada
+  e parada pelo menu do ícone. Compatível com o binário nativo existente.
 - TV, Spotify, atalhos Windows/XFCE e diagnóstico reunidos no pacote central.
 - Abertura Windows na raiz do pacote e distribuição dos arquivos do atalho
   também pelo CMake/pacote ARM64, sem instalação automática.

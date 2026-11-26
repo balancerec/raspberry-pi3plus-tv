@@ -36,7 +36,10 @@ clique em **ABRIR_NO_WINDOWS.cmd**; ele instala o atalho **Raspberry TV**.
 O primeiro acesso conectado também instala o ícone no desktop do Raspberry.
 Pelo VNC, esse ícone abre o executável existente sem terminal. O SSH pode
 solicitar sua senha quando a abertura parte do Windows; ela não é salva.
-Nenhum autostart é criado. [Instalação e remoção](docs/INSTALLATION.md#ícone-para-abertura-manual).
+O ícone também inicia o Soloist configurado em segundo plano, reutiliza
+instâncias existentes e tenta recuperar quedas com limite. O cliente continua
+disponível após fechar SSH; o menu do ícone permite parar o Spotify gerenciado.
+Nenhum autostart de boot é criado. [Instalação e remoção](docs/INSTALLATION.md#ícone-para-abertura-manual).
 
 O ZIP/TAR de fontes contém código compilável, sem executável ARM64 ou cliente
 Soloist oficial. Para gerar uma cópia auditada a partir de um checkout limpo:

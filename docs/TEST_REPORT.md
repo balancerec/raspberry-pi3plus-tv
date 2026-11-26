@@ -423,4 +423,56 @@ da correção atual no runner Linux. Não substitui build ARM64, Bluetooth,
 renderização física ou áudio audível no Raspberry; os testes do player usam
 fakesinks. Nenhum serviço do dispositivo foi alterado nesta publicação.
 
+### Soloist pelo ícone — implementação posterior
+
+A captura seguinte do usuário mostra a TV aberta e a mensagem “Soloist
+indisponível”. O launcher anterior iniciava apenas a UI, deixando a partida
+do cliente Spotify dependente de um terminal separado. Corrigido o fluxo:
+o ícone inicia ou reutiliza o cliente configurado, inclusive com a TV já aberta.
+Um supervisor do usuário roda em sessão separada, com lock, identidade de PID,
+duas tentativas de recuperação e pausa de 30 segundos após esgotá-las.
+O menu do ícone permite parar somente o grupo de processos gerenciado.
+
+O launcher reaproveita o helper Spotify da instalação existente e encaminha
+os comandos do painel pelo protocolo anterior. Não exige recompilar o binário
+do Pi, não transporta a chave e não apaga identidade/cache Connect. Não instala
+serviço de boot ou altera áudio global. A janela SDL e o player permanecem
+com o código anterior; a mudança está no launcher e no supervisor.
+
+Host Windows: **12/12 CTest PASS, 3,24 s**; suíte completa **70 casos, 63 PASS,
+7 SKIP, 2,218 s**. Os novos testes portáveis verificam reutilização sem nova
+leitura de chave, ausência de configuração, redaction e transporte comprimido
+Windows. Seis testes de processos Linux estão preparados para partida após
+saída do pai, concorrência, recuperação de queda, limite/backoff, cliente
+manual preservado, UI já aberta e ação de parada. Esses seis testes foram
+pulados no Windows; não são registrados como executados até passar no Linux.
+Docker não está disponível no PATH deste host. Validação física e som ainda
+dependem do dispositivo real e não foram inferidos da captura.
+
+A primeira execução Linux do novo teste rodou os dez casos e encontrou um
+erro ao instalar o ícone depois de abrir diretamente pelo launcher: o próprio
+launcher criava seu lock sem antes marcar o diretório como gerenciado. A
+criação foi unificada para marcar o diretório desde o primeiro uso. O teste
+também expôs um ResourceWarning do processo de partida; agora um processo
+intermediário é aguardado e recolhido, enquanto o supervisor continua em sua
+própria sessão. Foi incluída proteção contra duplicar um cliente manual vivo
+com API lenta, verificando PID, usuário e executável sem ler sua linha de
+comando. A execução Linux deve ser repetida antes de aplicar a atualização.
+
+Repetição aprovada no commit **237ddc1877a231a852b139926650f08d79938ae7**:
+[CI central 45823870221](https://github.com/balancerec/raspberry-pi3plus-tv/actions/runs/45823870221)
+e [CI Spotify 45823865192](https://github.com/balancerec/raspberry-pi3plus-tv/actions/runs/45823865192)
+concluíram com sucesso. No job Linux 139922845515, **16/16 CTest PASS, 10,32 s**;
+o teste desktop/supervisão passou em 9,00 s. A suíte Python executou **70/70
+casos, sem skip, em 9,572 s**. O ResourceWarning não reapareceu. Foram
+executados os seis casos POSIX, incluindo preservação de cliente manual
+cuja API está temporariamente lenta.
+
+O instalador Windows existente recebeu os dois helpers atualizados; o
+transporte comprimido tem 8.528 caracteres e foi conferido sem abrir SSH.
+A pasta instalada Windows retornou Acesso negado à escrita do agente e seus
+arquivos anteriores foram relidos e confirmados intactos. A aplicação da
+atualização será feita pelo instalador na sessão normal do usuário. O
+agente não executou SSH, não iniciou o Soloist real e não confirmou áudio.
+
 ---

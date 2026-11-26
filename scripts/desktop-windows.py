@@ -7,15 +7,16 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import zlib
 
 
 def main():
     directory = Path(__file__).resolve().parent
     source = (directory / "desktop-launcher.py").read_bytes()
     ast.parse(source.decode("utf-8"))
-    payload = base64.b64encode(source).decode("ascii")
-    remote = ('python3 -c "import base64;code=base64.b64decode(\'' + payload +
-              '\');exec(compile(code,\'raspberry-tv-launcher\',\'exec\'),'
+    payload = base64.b64encode(zlib.compress(source, 9)).decode("ascii")
+    remote = ('python3 -c "import base64,zlib;code=zlib.decompress(base64.b64decode(\'' + payload +
+              '\'));exec(compile(code,\'raspberry-tv-launcher\',\'exec\'),'
               '{\'__name__\':\'__main__\',\'SOURCE_BYTES\':code})" --install --launch')
     if "--check" in sys.argv:
         assert len(remote) < 30000
