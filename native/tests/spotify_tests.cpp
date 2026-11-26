@@ -48,6 +48,34 @@ int main() {
     controls.accept(playback);controls.requestStarted("soloist-resume");controls.requestCancelled();
     check(controls.nowPlaying().find("sem confirmacao")!=std::string::npos,"cancel does not restore stale playing state");
 
+    const std::string mediaWire="RTVSPOTIFY\t1\nstatus\tready\tOK\nplayback\tplaying\tMusica\tArtista\tRaspberry%20TV\t65\nfeatures\t1\t1\t1\t1\t1\tcontext\ntimeline\t30000\t180000\t1000\n";
+    const auto media=parseSpotifyReply(mediaWire);
+    check(media.hasFeatures && media.hasTimeline && media.canSeek && media.shuffle==1,"real media metadata parsed");
+    for(const auto& extra:{"timeline\t-1\t180000\t1000\n","timeline\t180001\t180000\t1000\n",
+                          "timeline\t0\t0\t0\n","timeline\t0\t180000\t4001\n","features\t1\t1\t1\t1\t2\toff\n"}) {
+        check(parseSpotifyReply(std::string("RTVSPOTIFY\t1\nstatus\tready\tOK\n")+extra).code=="error","invalid media metadata rejected");
+    }
+    SpotifyPanel player;check(player.mediaMode() && player.mediaFocus()==2,"Apps starts on play button");
+    player.accept(media,1000);
+    check(player.activateMedia()==SpotifyArguments({"soloist-toggle","--media"}),"play button dispatches local toggle with metadata opt-in");
+    check(player.positionAt(4000)==33000 && player.positionAt(21001)==-1,"progress advances from real anchor and expires");
+    auto paused=media;paused.playback="paused";player.accept(paused,2000);
+    check(player.positionAt(7000)==30000,"paused progress remains stationary");
+    player.accept(media,0xfffffff0U);check(player.positionAt(984)==31000,"progress handles SDL tick wrap");
+    player.navigateMedia(Action::Left);check(player.activateMedia().front()=="soloist-previous","left selects previous track");
+    player.navigateMedia(Action::Down);check(player.activateMedia().front()=="soloist-activate","down reaches closest secondary control");
+    check(player.selectMediaAt(1060,415) && player.activateMedia().front()=="soloist-volume-up","mouse hit targets same controls as controller");
+    check(!player.selectMediaAt(0,0),"background clicks do not activate controls");
+    check(player.mediaShortcut(Action::NextCategory).front()=="soloist-next" && player.mediaShortcut(Action::Details).front()=="soloist-mute","DS4 media shortcuts");
+    check(player.seekAt(640)==SpotifyArguments({"soloist-seek","90000","--media"}) && player.seekAt(99).empty(),"seek uses actual duration and rejects outside timeline");
+    player.requestStarted("soloist-pause");player.requestCancelled();check(player.positionAt(1000)==-1,"cancel invalidates progress until confirmed");
+    player.accept(parseSpotifyReply("RTVSPOTIFY\t1\nstatus\tready\tFila\npage\tqueue\t0\t-1\t0\t\n"));
+    check(player.browsing() && !player.mediaMode(),"queue has separate browsing view");
+    player.showMedia();player.showOptions();check(!player.browsing() && !player.mediaMode(),"advanced options remain separate");
+    player.showMedia();player.useLocal(false);player.accept(media,1000);
+    check(!player.controlEnabled(0) && player.mediaShortcut(Action::NextChannel).empty(),"unsupported Web controls do not pretend local functionality");
+    check(player.activateMedia().front()=="toggle","Web play button uses explicit toggle");
+
     TvModel model;model.dispatch(Action::Down);model.dispatch(Action::Confirm);
     check(model.view()==View::Apps && model.visibleCount()==11,"Apps reachable by DS4 actions");
     model.setAppRowCount(12);model.dispatch(Action::Right);check(model.selectedRow()==6,"Apps pagination");

@@ -356,6 +356,92 @@ class SpotifyTests(unittest.TestCase):
                 self.assertNotIn("--api-key", call)
                 self.assertSafe(call)
 
+    @staticmethod
+    def media_state(position_ms=20000, **changes):
+        data = {"status": "paused", "is_active": True, "volume": 65,
+                "item": {"decorations": {"identity": {"name": "Musica de teste"},
+                          "playback": {"duration_ms": 180000}}},
+                "position": {"position_ms": position_ms, "timestamp_ms": 1000000, "speed": 0},
+                "options": {"shuffle": False, "repeat": "off"},
+                "available_actions": {"seek": {}, "shuffle": {}, "set_repeat": {}}}
+        data.update(changes)
+        return data
+
+    def test_media_metadata_opt_in_preserves_old_native_protocol(self):
+        state = self.media_state()
+        client, _, _ = self.soloist()
+        original = client.playback_records(state, "OK")
+        self.assertEqual([row[0] for row in original], ["status", "playback"])
+        client.media = True
+        records = client.playback_records(state, "OK")
+        self.assertEqual(records[:2], original)
+        self.assertIn(("timeline", "20000", "180000", "0"), records)
+        self.assertIn(("features", "1", "1", "1", "1", "0", "off"), records)
+
+    def test_media_position_uses_anchor_and_speed_only_when_playing(self):
+        state = self.media_state(status="playing", position={"position_ms": 20000, "timestamp_ms": 1000000, "speed": 1})
+        with mock.patch.object(spotify.time, "time", return_value=1003):
+            self.assertEqual(spotify.media_position(state), (23000, 180000, 1000))
+            state["status"] = "paused"
+            self.assertEqual(spotify.media_position(state), (20000, 180000, 0))
+            state["status"] = "playing"
+            state["position"].pop("timestamp_ms")
+            self.assertEqual(spotify.media_position(state), (20000, 180000, 0))
+            state["position"].update(timestamp_ms=1, position_ms=179999, speed=1)
+            self.assertEqual(spotify.media_position(state)[0], 180000)
+
+    def test_media_unknown_or_malformed_progress_is_never_invented(self):
+        for change in ({"position": {}}, {"position": []}, {"position": {"position_ms": float("nan")}},
+                       {"item": []}, {"item": {"decorations": {"playback": {"duration_ms": -1}}}}):
+            with self.subTest(change=change):
+                self.assertEqual(spotify.media_position(self.media_state(**change)), (-1, -1, 0))
+        records = spotify.media_records({"status": "idle", "options": [], "available_actions": []})
+        self.assertEqual(records, [("features", "0", "0", "0", "0", "-1", "unknown")])
+
+    def test_media_mute_restores_previous_volume_in_private_state(self):
+        before = self.media_state()
+        muted = self.media_state(volume=0)
+        client, calls, _ = self.soloist((0, json.dumps(before).encode()), (0, b""), (0, json.dumps(muted).encode()),
+                                      (0, json.dumps(muted).encode()), (0, b""), (0, json.dumps(before).encode()))
+        self.assertEqual(client.records("soloist-mute")[0][1], "ready")
+        self.assertEqual(self.store.read("volume.private.json"), {"restore_volume": 65})
+        self.assertEqual(client.records("soloist-mute")[0][1], "ready")
+        self.assertEqual([call[-2:] for call in calls if "volume" in call], [["volume", "0"], ["volume", "65"]])
+
+    def test_media_shuffle_repeat_confirm_actual_state(self):
+        for command, initial, after, expected in (
+            ("shuffle", {"shuffle": False, "repeat": "off"}, {"shuffle": True}, ["shuffle", "on"]),
+            ("repeat", {"shuffle": False, "repeat": "off"}, {"repeat": "context"}, ["repeat", "context"]),
+            ("repeat", {"shuffle": False, "repeat": "context"}, {"repeat": "track"}, ["repeat", "track"]),
+            ("repeat", {"shuffle": False, "repeat": "track"}, {"repeat": "off"}, ["repeat", "off"])):
+            with self.subTest(command=command, expected=expected):
+                state = self.media_state(options=initial)
+                changed = self.media_state(options={**initial, **after})
+                client, calls, _ = self.soloist((0, json.dumps(state).encode()), (0, b""), (0, json.dumps(changed).encode()))
+                self.assertEqual(client.records("soloist-" + command)[0][1], "ready")
+                self.assertEqual(calls[1][-2:], expected)
+
+    def test_media_seek_is_clamped_and_confirmed_without_replaying_commands(self):
+        for command, value, start, target in (("seek", "999999", 1000, 180000),
+                                             ("seek-back", "", 2000, 0), ("seek-forward", "", 175000, 180000)):
+            before, after = self.media_state(start), self.media_state(target)
+            client, calls, _ = self.soloist((0, json.dumps(before).encode()), (0, b""), (0, json.dumps(after).encode()))
+            self.assertEqual(client.records("soloist-" + command, value)[0][1], "ready")
+            self.assertEqual(calls[1][-2:], ["seek", str(target)])
+            self.assertEqual(len(calls), 3)
+
+    def test_media_unavailable_actions_do_not_send_control_commands(self):
+        for command in ("seek-forward", "shuffle", "repeat"):
+            client, calls, _ = self.soloist((0, json.dumps(self.media_state(available_actions={})).encode()))
+            with self.subTest(command=command), self.assertRaises(spotify.SpotifyError):
+                client.records("soloist-" + command)
+            self.assertEqual(len(calls), 1)
+        for value in ("-1", "abc", "1" * 20):
+            client, calls, _ = self.soloist((0, json.dumps(self.media_state()).encode()))
+            with self.subTest(value=value), self.assertRaises(spotify.SpotifyError):
+                client.records("soloist-seek", value)
+            self.assertEqual(len(calls), 1)
+
     def test_soloist_refuses_external_or_invalid_endpoint(self):
         client, calls, data = self.soloist()
         for address, port in (("0.0.0.0", "9090"), ("192.0.2.1", "9090"), ("127.0.0.1", "65536"), ("127.0.0.1", "0"), ("127.0.0.1", "invalid"), ("127.0.0.1", "1" * 10000)):

@@ -2,6 +2,7 @@
 #include "tv/playlist.hpp"
 #include <algorithm>
 #include <charconv>
+#include <cstdlib>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -61,6 +62,16 @@ SpotifyReply parseSpotifyReply(const std::string& wire) {
                 if(std::find(allowed.begin(),allowed.end(),f[1])==allowed.end() || f[2].size()>1200)throw std::runtime_error("status");
                 reply.code=f[1];reply.message=f[2];status=true;
             } else if(f[0]=="profile" && f.size()==2)reply.profile=f[1];
+            else if(f[0]=="timeline" && f.size()==4 && !reply.hasTimeline) {
+                reply.position=number(f[1],0,604800000);reply.duration=number(f[2],1,604800000);
+                reply.speed=number(f[3],0,4000);reply.hasTimeline=true;
+                if(reply.position>reply.duration)throw std::runtime_error("position");
+            } else if(f[0]=="features" && f.size()==7 && !reply.hasFeatures) {
+                reply.active=number(f[1],0,1)!=0;reply.canSeek=number(f[2],0,1)!=0;
+                reply.canShuffle=number(f[3],0,1)!=0;reply.canRepeat=number(f[4],0,1)!=0;
+                reply.shuffle=number(f[5],-1,1);reply.repeat=f[6];reply.hasFeatures=true;
+                if(reply.repeat!="off" && reply.repeat!="context" && reply.repeat!="track" && reply.repeat!="unknown")throw std::runtime_error("repeat");
+            }
             else if(f[0]=="playback" && f.size()==6 && !reply.hasPlayback) {
                 if(f[1]!="playing" && f[1]!="paused" && f[1]!="idle" && f[1]!="buffering")throw std::runtime_error("playback");
                 reply.hasPlayback=true;reply.playback=f[1];reply.track=f[2];reply.artist=f[3];reply.device=f[4];reply.volume=number(f[5],-1,100);
@@ -74,7 +85,7 @@ SpotifyReply parseSpotifyReply(const std::string& wire) {
                 reply.entries.push_back({f[1],f[2],f[3],f[4],f[5]=="1"});
             } else throw std::runtime_error("protocol");
         }
-        if(!status || (!reply.entries.empty() && !reply.hasPage))return invalid();
+        if(!status || (!reply.entries.empty() && !reply.hasPage) || ((reply.hasTimeline || reply.hasFeatures) && !reply.hasPlayback))return invalid();
         return reply;
     } catch(const std::exception&) {return invalid();}
 }
@@ -116,16 +127,17 @@ void SpotifyWorker::run() {
 
 SpotifyPanel::SpotifyPanel(){rebuild();}
 void SpotifyPanel::useLocal(bool local) {
-    local_=local;page_.reset();confirming_=false;playback_="unknown";
+    local_=local;page_.reset();confirming_=false;playback_="unknown";media_={};showMedia();mediaFocus_=2;
     nowPlaying_=local?"Spotify Soloist - dispositivo Raspberry TV":"Spotify Web API - dispositivo da conta";
-    message_=local?"Inicie Soloist no terminal e selecione Raspberry TV no Spotify.":"Playlists e dispositivos: configure Client ID e login OAuth (opcional).";
+    message_=local?"Escolha Raspberry TV nos dispositivos do Spotify.":"Conecte sua conta para ver playlists e dispositivos.";
     rebuild();
 }
 void SpotifyPanel::requestStarted(const std::string& command) {
     static const std::vector<std::string> commands{
         "soloist-status","soloist-play","soloist-resume","soloist-toggle","soloist-pause",
         "soloist-next","soloist-previous","soloist-volume-up","soloist-volume-down",
-        "soloist-activate","soloist-deactivate","status","play","resume","pause",
+        "soloist-activate","soloist-deactivate","soloist-mute","soloist-shuffle","soloist-repeat",
+        "soloist-seek","soloist-seek-back","soloist-seek-forward","status","play","resume","pause","toggle",
         "next","previous","volume-up","volume-down","transfer"};
     if(std::find(commands.begin(),commands.end(),command)==commands.end())return;
     confirming_=true;nowPlaying_="Atualizando estado do Spotify...";
@@ -133,16 +145,18 @@ void SpotifyPanel::requestStarted(const std::string& command) {
 void SpotifyPanel::requestCancelled() {
     if(!confirming_)return;
     confirming_=false;playback_="unknown";
+    media_.playback="unknown";media_.hasTimeline=false;
     nowPlaying_="Estado do Spotify sem confirmacao; atualize";
     message_="Espera cancelada. Um comando ja aceito pelo Spotify pode ter sido executado.";
     rebuild();
 }
-void SpotifyPanel::accept(const SpotifyReply& reply) {
+void SpotifyPanel::accept(const SpotifyReply& reply,std::uint32_t now) {
     message_=reply.message;
-    if(confirming_ && !reply.hasPlayback) {playback_="unknown";nowPlaying_="Estado do Spotify sem confirmacao; atualize";}
+    if((confirming_ || reply.code!="ready") && !reply.hasPlayback) {playback_="unknown";media_.playback="unknown";media_.hasTimeline=false;nowPlaying_="Estado do Spotify sem confirmacao; atualize";}
     confirming_=false;
-    if(reply.code=="auth" || reply.code=="setup") {page_.reset();playback_="unknown";nowPlaying_="Spotify Connect - conta desconectada";}
+    if(reply.code=="auth" || reply.code=="setup") {page_.reset();showMedia();playback_="unknown";nowPlaying_="Spotify Connect - conta desconectada";}
     if(reply.hasPlayback) {
+        media_=reply;mediaAt_=now;
         playback_=reply.playback;
         nowPlaying_=reply.playback=="playing"?"Tocando: ":reply.playback=="paused"?"Pausado: ":reply.playback=="buffering"?"Buffering: ":"Sem reproducao ativa";
         if(!reply.track.empty())nowPlaying_+=(reply.playback=="idle"?" | ":"")+reply.track;
@@ -150,7 +164,7 @@ void SpotifyPanel::accept(const SpotifyReply& reply) {
         if(!reply.device.empty())nowPlaying_+=" | "+reply.device;
         if(reply.volume>=0)nowPlaying_+=" | "+std::to_string(reply.volume)+"%";
     }
-    if(reply.hasPage && reply.code=="ready")page_=reply;
+    if(reply.hasPage && reply.code=="ready") {page_=reply;mediaMode_=false;browsing_=true;}
     rebuild();
 }
 void SpotifyPanel::rebuild() {
@@ -204,5 +218,73 @@ SpotifyArguments SpotifyPanel::activate(std::size_t row,bool details) const {
         return {};
     }
     return rows_[row].arguments;
+}
+SpotifyArguments SpotifyPanel::statusCommand() const {return {local_?"soloist-status":"status","--media"};}
+bool SpotifyPanel::controlEnabled(std::size_t control) const {
+    if(control==0)return local_ && media_.canShuffle;
+    if(control==4)return local_ && media_.canRepeat;
+    if(control==5)return media_.volume>=0 && local_;
+    if(control==6 || control==7)return media_.volume>=0;
+    return control<MediaRects.size();
+}
+std::string SpotifyPanel::controlLabel(std::size_t control) const {
+    static const std::array<const char*,12> labels{{"Aleatorio","Anterior","Reproduzir","Proxima","Repetir","Mudo","Volume -","Volume +","Fila","Dispositivo","Mais","Atualizar"}};
+    if(control>=labels.size())return {};
+    if(control==2 && (playback_=="playing" || playback_=="buffering"))return "Pausar";
+    if(control==5 && media_.volume==0)return "Ativar som";
+    return labels[control];
+}
+SpotifyArguments SpotifyPanel::activateMedia() const {
+    if(!controlEnabled(mediaFocus_))return {};
+    static const std::array<const char*,12> commands{{"shuffle","previous","toggle","next","repeat","mute","volume-down","volume-up","queue","activate","show-options","status"}};
+    if(mediaFocus_==10)return {"show-options"};
+    std::string command=commands[mediaFocus_];
+    if(!local_ && mediaFocus_==8)command="playlists";
+    if(!local_ && mediaFocus_==9)command="devices";
+    return {(local_?"soloist-":"")+command,"--media"};
+}
+SpotifyArguments SpotifyPanel::mediaShortcut(Action action) const {
+    std::string command;
+    if(action==Action::Confirm)command="toggle";
+    else if(action==Action::PreviousCategory)command="previous";
+    else if(action==Action::NextCategory)command="next";
+    else if(action==Action::Favorites)command=local_?"queue":"playlists";
+    else if(action==Action::Details && local_ && media_.volume>=0)command="mute";
+    else if(local_ && media_.canSeek && action==Action::PreviousChannel)command="seek-back";
+    else if(local_ && media_.canSeek && action==Action::NextChannel)command="seek-forward";
+    if(command.empty())return {};
+    return {(local_?"soloist-":"")+command,"--media"};
+}
+void SpotifyPanel::navigateMedia(Action action) {
+    const std::size_t first=mediaFocus_<8?0:8, count=mediaFocus_<8?8:4;
+    if(action==Action::Left)mediaFocus_=first+(mediaFocus_-first+count-1)%count;
+    else if(action==Action::Right)mediaFocus_=first+(mediaFocus_-first+1)%count;
+    else if((action==Action::Down && mediaFocus_<8) || (action==Action::Up && mediaFocus_>=8)) {
+        const int x=MediaRects[mediaFocus_].x+MediaRects[mediaFocus_].w/2;
+        int best=10000;const std::size_t begin=action==Action::Down?8:0,end=action==Action::Down?12:8;
+        for(auto i=begin;i<end;++i) {const int distance=std::abs(MediaRects[i].x+MediaRects[i].w/2-x);if(distance<best){best=distance;mediaFocus_=i;}}
+    }
+}
+bool SpotifyPanel::selectMediaAt(int x,int y) {
+    for(std::size_t i=0;i<MediaRects.size();++i) {const auto r=MediaRects[i];if(x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h){mediaFocus_=i;return true;}}
+    return false;
+}
+SpotifyArguments SpotifyPanel::seekAt(int x) const {
+    if(!local_ || !media_.canSeek || !media_.hasTimeline || x<100 || x>1180)return {};
+    const auto position=static_cast<long long>(x-100)*media_.duration/1080;
+    return {"soloist-seek",std::to_string(position),"--media"};
+}
+int SpotifyPanel::positionAt(std::uint32_t now) const {
+    const auto elapsed=static_cast<std::uint32_t>(now-mediaAt_);
+    if(!media_.hasTimeline || elapsed>20000 || media_.playback=="unknown")return -1;
+    const auto advance=playback_=="playing"?static_cast<long long>(elapsed)*media_.speed/1000:0;
+    return static_cast<int>(std::min<long long>(media_.duration,media_.position+advance));
+}
+std::string SpotifyPanel::browserTitle() const {
+    if(!browsing_ || !page_)return "MAIS CONTROLES";
+    if(page_->page=="queue")return "FILA DE REPRODUCAO";
+    if(page_->page=="devices")return "DISPOSITIVOS";
+    if(page_->page=="playlists")return "MINHAS PLAYLISTS";
+    return "FAIXAS";
 }
 } // namespace raspberry_tv
