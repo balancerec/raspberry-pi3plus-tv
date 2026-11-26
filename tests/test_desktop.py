@@ -126,6 +126,7 @@ server.listen(8)
 (data / 'ws.addr').write_text('127.0.0.1')
 (data / 'ws.port').write_text(str(server.getsockname()[1]))
 (data / 'provider.pid').write_text(str(os.getpid()))
+(data / 'soloist.pid').write_text(str(os.getpid()))
 while True:
     connection, _ = server.accept()
     with connection:
@@ -230,6 +231,10 @@ class DesktopProcessTests(unittest.TestCase):
             self.wait_for(self.session.ready)
             self.session.ensure()
             self.assertFalse(self.session.read("owner.private.json"))
+            with mock.patch.object(self.session, "ready", return_value=False):
+                with self.assertRaises(RuntimeError):
+                    self.session.ensure(timeout=.3)
+            self.assertEqual(self.starts(), 0)  # A slow existing API must not create a second client.
             self.session.stop()
             self.assertIsNone(process.poll())
             self.assertEqual(self.starts(), 0)

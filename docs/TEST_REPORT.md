@@ -449,4 +449,14 @@ pulados no Windows; não são registrados como executados até passar no Linux.
 Docker não está disponível no PATH deste host. Validação física e som ainda
 dependem do dispositivo real e não foram inferidos da captura.
 
+A primeira execução Linux do novo teste rodou os dez casos e encontrou um
+erro ao instalar o ícone depois de abrir diretamente pelo launcher: o próprio
+launcher criava seu lock sem antes marcar o diretório como gerenciado. A
+criação foi unificada para marcar o diretório desde o primeiro uso. O teste
+também expôs um ResourceWarning do processo de partida; agora um processo
+intermediário é aguardado e recolhido, enquanto o supervisor continua em sua
+própria sessão. Foi incluída proteção contra duplicar um cliente manual vivo
+com API lenta, verificando PID, usuário e executável sem ler sua linha de
+comando. A execução Linux deve ser repetida antes de aplicar a atualização.
+
 ---

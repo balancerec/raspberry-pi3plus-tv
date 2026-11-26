@@ -80,7 +80,7 @@ def desktop_argument(value):
     return '"' + value.replace("\\", "\\\\") + '"'
 
 
-def install():
+def managed_launcher_directory():
     directory = launcher_dir()
     if directory.is_symlink():
         raise RuntimeError("Diretorio de atalho inesperado; nenhuma alteracao realizada.")
@@ -89,10 +89,15 @@ def install():
         if not marker.is_file() or marker.is_symlink() or marker.read_text() != MARKER:
             raise RuntimeError("Diretorio existente nao pertence a este instalador; preservado.")
     directory.mkdir(parents=True, mode=0o700, exist_ok=True)
+    write_owned(marker, MARKER.encode())
+    return directory
+
+
+def install():
+    directory = managed_launcher_directory()
     source = globals().get("SOURCE_BYTES")
     if source is None:
         source = Path(__file__).read_bytes()
-    write_owned(marker, MARKER.encode())
     script = directory / "open-tv.py"
     icon = directory / "raspberry-tv.svg"
     write_owned(script, source, 0o700)
@@ -251,6 +256,18 @@ class SoloistSession:
             # Provider exceptions can contain private data; none cross this API.
             return False
 
+    def provider_running(self):
+        try:
+            client = self.core().Soloist(self.core().Store())
+            data, _ = client.directories()
+            with (data / "soloist.pid").open(encoding="ascii") as stream:
+                pid = int(stream.read(20).strip())
+            process = Path("/proc") / str(pid)
+            state = (process / "stat").read_text().rsplit(") ", 1)[1].split()[0]
+            return pid > 1 and state != "Z" and process.stat().st_uid == os.getuid() and (process / "exe").resolve() == Path(client.binary()).resolve()
+        except (OSError, ValueError, IndexError):
+            return False
+
     def ensure(self, timeout=6):
         deadline = time.monotonic() + timeout
         with self.locked("startup.lock", deadline):
@@ -265,14 +282,20 @@ class SoloistSession:
                 raise RuntimeError("Spotify encerrou com falha. Aguarde 30 segundos e abra o aplicativo novamente.")
             record = self.read("owner.private.json")
             process = None
-            if not self.alive(record):
-                arguments = [sys.executable, "-I", str(helper_script()), "--soloist-worker", "--project", str(self.project)]
+            if not self.alive(record) and not self.provider_running():
+                arguments = [sys.executable, "-I", str(helper_script()), "--soloist-detach", "--project", str(self.project)]
                 process = subprocess.Popen(arguments, env=session_environment(), stdin=subprocess.DEVNULL,
                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+                    raise RuntimeError("Spotify demorou para iniciar; tente novamente.") from None
             while time.monotonic() < deadline:
                 if self.ready():
                     return
-                if process is not None and process.poll() is not None:
+                if process is not None and process.poll() not in (None, 0):
                     break
                 time.sleep(0.15)
         raise RuntimeError("Spotify ainda nao ficou disponivel. Atualize o estado em instantes; confira a saida de audio se a falha persistir.")
@@ -349,8 +372,7 @@ def launch():
                   if binary.is_file() and os.access(binary, os.X_OK) and (project / "scripts/run-native.sh").is_file()]
     if not candidates:
         raise RuntimeError("Executavel nao encontrado nas instalacoes existentes. Nenhum build foi iniciado.")
-    directory = launcher_dir()
-    directory.mkdir(parents=True, mode=0o700, exist_ok=True)
+    directory = managed_launcher_directory()
     with (directory / "launch.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         project, binary = candidates[0]
@@ -399,16 +421,25 @@ def main():
     parser.add_argument("--install", action="store_true")
     parser.add_argument("--launch", action="store_true")
     parser.add_argument("--soloist-worker", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--soloist-detach", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--stop-soloist", action="store_true")
     parser.add_argument("--project", type=Path)
     args = parser.parse_args()
     if os.geteuid() == 0:
         parser.error("Execute como usuario da sessao grafica, sem sudo.")
-    if args.soloist_worker and args.project is None:
+    if (args.soloist_worker or args.soloist_detach) and args.project is None:
         parser.error("Worker Spotify exige --project.")
     try:
         if args.install:
             install()
+        if args.soloist_detach:
+            if os.fork():
+                return 0
+            os.setsid()
+            try:
+                SoloistSession(args.project).supervise()
+            finally:
+                os._exit(0)
         if args.soloist_worker:
             SoloistSession(args.project).supervise()
             return 0
@@ -424,7 +455,7 @@ def main():
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:
         message = "Raspberry TV: " + str(error)
         print(message, file=sys.stderr, flush=True)
-        if not args.soloist_worker and not os.environ.get("SSH_CONNECTION"):
+        if not (args.soloist_worker or args.soloist_detach) and not os.environ.get("SSH_CONNECTION"):
             dialog = ["zenity", "--error", "--title=Raspberry TV", "--text=" + message] if shutil.which("zenity") else ["xmessage", "-center", message]
             if shutil.which(dialog[0]):
                 subprocess.Popen(dialog, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
