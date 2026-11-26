@@ -58,10 +58,18 @@ const char* TvModel::viewTitle(View view) {
     return "RASPBERRY TV";
 }
 std::size_t TvModel::visibleCount() const {
+    if (view_ == View::Apps) return appRowCount_;
     if (view_ == View::Settings) return 5;
     if (view_ == View::Favorites) return visibleFavorites_.size();
     if (view_ == View::Channels) return visibleChannels_.size();
     return 0;
+}
+void TvModel::setAppRowCount(std::size_t count, bool reset) {
+    appRowCount_ = count;
+    if(view_==View::Apps && (reset || selectedRow_>=count))selectedRow_=0;
+}
+void TvModel::selectAppRow(std::size_t row) {
+    if(view_==View::Apps)selectedRow_=row<appRowCount_?row:0;
 }
 std::string TvModel::activeGroup() const {
     return groupIndex_ == 0 || groupIndex_ > groups_.size() ?
@@ -143,9 +151,11 @@ void TvModel::dispatch(Action action) {
         return;
     }
     if (help_ || details_) return;
-    if (view_ == View::Settings) {
+    if (view_ == View::Settings || view_ == View::Apps) {
         if(action==Action::Up)move(-1);
         if(action==Action::Down)move(1);
+        if(view_==View::Apps && action==Action::Left)for(int i=0;i<6;++i)move(-1);
+        if(view_==View::Apps && action==Action::Right)for(int i=0;i<6;++i)move(1);
     }
     if (action == Action::Favorites) {
         if (view_ == View::Channels || view_ == View::Favorites) toggleFavorite();

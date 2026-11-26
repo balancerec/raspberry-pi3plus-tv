@@ -21,10 +21,11 @@ recebe aprovação física por inferência.
 - [x] Nenhum merge no main ou alteração automática de serviços/instalação aprovada no Pi realizada.
 - [x] Publicação da branch de finalização autorizada pelo usuário; playlist privada excluída da entrega.
 
-## Build / integração Linux ainda necessários
+## Build / integração Linux
 
 - [x] Aplicação completa ARM64 compilada após hotfix X11 (build retomado; log fornecido pelo usuário).
-- [ ] Build completo limpo ARM64 com SDL2/GStreamer 1.26.
+- [x] Build completo em diretório ARM64 isolado com SDL2/GStreamer 1.26,
+  incluindo Spotify; log de compilação integral fornecido pelo usuário em 25/11/2026.
 - [x] CTest completo Linux (12/12 PASS, 4,46 s; log fornecido pelo usuário).
 - [x] Ownership real de GStreamer com CRITICAL fatal aprovado na RC1 (teste #11).
 - [x] Player real com fakesinks: WAV → PLAYING/pausa/retomada/stop; falhas/requisições obsoletas/shutdown (teste #12).
@@ -61,3 +62,56 @@ recebe aprovação física por inferência.
 - [ ] Limitações de alimentação/desempenho aceitas com medições reais.
 - [ ] Investigar travamentos relatados; subtensão é hipótese, não diagnóstico exclusivo comprovado.
 - [ ] Release 1.0 final aprovada. Até lá, manter o identificador RC1.
+
+## Adicional Spotify — build no Pi aprovado; aceite físico pendente
+
+- [x] Base RC1 preservada; nenhum merge no main ou substituição da instalação aprovada pelo agente.
+- [x] Testes portáveis existentes executados antes da alteração: 9/9 PASS.
+- [x] Testes offline Spotify e worker/protocolo/navegação C++ executados.
+- [x] Credencial real ausente de fonte, testes, exemplos e arquivos Git.
+- [x] Configuração privada e instruções de instalação/execução/rollback preparadas.
+- [x] Build ARM64 da interface alterada e CTest completo, incluindo processo POSIX:
+  15/15 PASS, 12,26 s, conforme log do usuário.
+- [x] UI inicializa e reporta renderização interna/saída 1920×1080 no log SDL.
+- [x] Permissões POSIX 0700/0600 em fixtures de teste aprovadas na suíte Python.
+- [x] Configuração da chave por prompt oculto confirmada pelo log do usuário.
+- [x] Raspberry TV selecionado no Spotify Connect, conforme captura do usuário.
+- [ ] Permissões dos arquivos reais, versão do cliente Soloist e áudio HDMI audível verificados no Pi.
+- [ ] OAuth real opcional, playlists da conta e dispositivo real.
+- [ ] Regressão física IPTV/Full HD/DS4/OSD após esta integração.
+
+## Correção posterior Spotify / ausência de som
+
+- [x] Foto fornecida confirma painel APLICATIVOS na TV e indicador PS4 conectado.
+- [x] Registrar pausa relatada e ausência de som confirmada pelo usuário.
+- [x] Corrigir alternância pausa/retomada e cabeçalho desatualizado; testes no host.
+- [x] Testar preferência de saída isolada no processo e preservação da chave.
+- [x] Preparar diagnóstico de saídas/mute/fluxos sem credenciais.
+- [ ] Obter diagnóstico real e identificar a saída usada pelo Soloist.
+- [ ] Compilar e executar os 15 CTest no Pi após esta correção.
+- [ ] Confirmar música audível, pausa/retomada, faixas e volume na TV.
+
+## Ícone de abertura manual — 26/11/2026
+
+- [x] Preparar ícone próprio, launcher XFCE com Terminal=false e ponte Windows.
+- [x] Validar sintaxe do instalador Windows e payload Python sem conexão SSH.
+- [x] Gerar e reler o arquivo .lnk na pasta de entrega com destino/ícone corretos.
+- [ ] Instalar na área de trabalho Windows pela sessão normal do usuário
+  (a gravação direta do agente recebeu Acesso negado).
+- [ ] Primeiro uso no Pi: ícone visível, abertura do app e prevenção de duplicata.
+
+## Consolidação do pacote central — 26/11/2026
+
+- [x] Reunir TV, integração Spotify, atalhos e diagnóstico no mesmo código-fonte.
+- [x] Incluir todos os arquivos do atalho no layout de instalação CMake/ARM64.
+- [x] Build limpo portável e 11/11 CTest aprovados novamente antes da publicação.
+- [x] Suíte Python completa aprovada no host, com o teste POSIX pendente.
+- [x] Empacotador recusa checkout com alterações não commitadas.
+- [x] Gerar ZIP/TAR central: arquivos relidos e 96 hashes de fontes conferidos.
+- [x] Auditar os blobs dos commits Spotify/atalhos e recusar credenciais reais.
+- [x] Usuário autorizou publicar a integração Spotify e o pacote central no Git.
+- [x] Publicação confirmada no GitHub nas duas branches, com árvores de arquivos
+  idênticas às auditadas e main preservado.
+- [x] CI Linux do pacote central: aplicação completa compilada, 15/15 CTest e
+  60/60 testes Python aprovados no commit 64aa777.
+- [ ] Novo build completo ARM64 e confirmação física do áudio Spotify.

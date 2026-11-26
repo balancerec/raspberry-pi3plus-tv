@@ -9,3 +9,11 @@ __pycache__/
 !tests/fixtures/*.m3u
 !tests/fixtures/*.m3u8
 *.log
+
+# Local credentials must never be versioned or packaged.
+.env
+.env.*
+!.env.example
+*.private.json
+*.secret
+spotify-tokens*

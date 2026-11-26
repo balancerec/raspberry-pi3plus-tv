@@ -1,4 +1,4 @@
-# Relatório de testes — 1.0.0-rc1 — 2026-11-24
+# Relatório de testes — 1.0.0-rc1 — atualizado em 2026-11-25
 
 ## Resultado executivo
 
@@ -8,6 +8,11 @@ O servidor Python legado passou: **9/9, 0,797 s**. Depois do hotfix X11, o
 usuário compilou a aplicação completa no Pi e executou **12/12 testes com
 sucesso, 4,46 s**. O agente não acessou o Pi; os resultados ARM64 são do log
 fornecido pelo usuário. O binário foi gerado no dispositivo, não neste host.
+
+**Atualização Spotify (25/11/2026):** o usuário forneceu posteriormente o log
+de compilação completa ARM64 da integração e **15/15 CTest PASS, 12,26 s**.
+O SDL reportou renderização e saída 1920×1080. A evidência detalhada está ao
+final deste documento; áudio audível e comandos físicos continuam pendentes.
 
 ## Ambiente e procedência
 
@@ -184,3 +189,238 @@ No worktree isolado do Pi, rode diagnóstico, build limpo/CTest completo e
 RELEASE_CHECKLIST.md com fonte atual, sem estresse prolongado. Registre
 vídeo visível, áudio audível, reconexão DS4, retorno ao menu e ausência de
 criticals. Só então marque itens pendentes e considere remover RC1 do nome.
+# Integração Spotify — validação adicional de 25/11/2026
+
+Esta seção refere-se à branch `feature/native-spotify-integration`, derivada
+da RC1 publicada `e84c664`. As evidências anteriores no Pi permanecem válidas
+somente para a versão anterior; não aprovam a nova interface por inferência.
+
+| Verificação executada neste host Windows | Resultado real |
+|---|---|
+| CTest portátil antes de alterações | 9/9 PASS, 1,09 s |
+| Build limpo `build-spotify-final`, MSVC/CMake Release, `BUILD_NATIVE_APP=OFF` | PASS, sem erros; avisos MSVC preexistentes em settings.cpp |
+| CTest após integração | 11/11 PASS, 2,08 s |
+| Suíte Python Spotify (incluída em um teste CTest) | 39 casos: 38 PASS, 1 SKIP POSIX |
+| Regressão do servidor Python legado | 9/9 PASS |
+
+Logs locais: `build-spotify-final-configure.log`,
+`build-spotify-final-compile.log` e `build-spotify-final-ctest.log` na raiz do
+checkout. Esses logs não são versionados nem contêm credenciais de conta.
+
+Spotify: PKCE/RFC7636, estado/callback inválido, armazenamento atômico,
+corrupção, exclusão entre processos, refresh/rotação e limite de uma renovação
+em 401; erros 403/404/503, cooldown persistente em 429, endpoints/paginação,
+UTF-8, payloads de comandos e ausência de tokens na saída. Soloist: loopback
+obrigatório, arquivos de discovery, estado/fila no formato oficial, comandos
+sem chave em ctl, volume relativo, entrada oculta, build expirado e interrupção
+do launcher. Respostas e credenciais são artificiais; nenhum login, pareamento
+ou comando autenticado real foi executado.
+
+No C++ foram executados protocolo/limites, estados, navegação de APLICATIVOS,
+seleção de backend, manutenção/limpeza de metadados, serialização de comandos,
+cancelamento/descarte de resposta antiga, falha sanitizada e shutdown do worker.
+Os nove testes anteriores de parser, entrada, persistência, playback e filas
+continuam passando. Não alteramos o ciclo de vida de GStreamer nesta integração.
+
+Na etapa inicial no host Windows, build Linux/ARM64 da UI, adaptador POSIX,
+permissões 0700/0600 e CTest completo do destino ainda estavam pendentes.
+O usuário executou posteriormente esses testes, conforme nova evidência abaixo.
+O workflow Linux está preparado no Git, mas não foi executado nesta sessão.
+Não há SDK SDL2/GStreamer Linux neste host, acesso SSH operacional ou cliente
+Soloist disponível ao agente para validar som.
+
+Cliente Soloist oficial não é redistribuído. Precisa ser instalado e pareado
+pelo usuário; depende de PipeWire/PulseAudio no Linux. O diagnóstico anterior
+de PipeWire ausente no DietPi continua relevante. Não modificamos servidores
+de áudio nem serviços para contorná-lo. Não certificamos áudio pela alteração
+de propriedade, por resposta da API ou por teste com mock.
+
+Chave real fornecida na conversa não foi gravada em fonte, teste, exemplo,
+comando, log ou configuração desta entrega. Código e pacote são preparados
+sem credenciais. Configuração real deverá ser feita com o prompt oculto do
+launcher, em arquivo privado XDG fora do checkout. Limitação de argv da CLI
+oficial e demais requisitos: [SPOTIFY.md](SPOTIFY.md).
+
+Não foram medidos consumo de memória, CPU, FPS, temperatura ou alimentação
+após esta mudança. HDMI 1080p, DS4, IPTV e áudio exigem regressão física com o
+novo build. Nenhuma atualização/instalação de release foi aplicada ao Pi pelo agente.
+
+### Evidência posterior do usuário: configuração e Spotify Connect
+
+Em 25/11/2026, o usuário enviou o log do prompt oculto concluído com a mensagem
+de chave Soloist salva em arquivo privado fora do projeto. O valor da chave
+não apareceu nesse log e não foi copiado para arquivos Git.
+
+Depois enviou uma captura do Spotify desktop com **Raspberry TV** destacado
+no painel Connect e a indicação de dispositivo no rodapé. Isso confirma que
+o dispositivo foi descoberto e selecionado no cliente Spotify. O botão central
+exibe o ícone de reproduzir (triângulo), compatível com pausa na captura;
+a indicação do dispositivo no rodapé não comprova áudio audível ou reprodução
+contínua. Não reproduzimos dados pessoais ou a imagem no repositório.
+
+Áudio na TV, saída HDMI, volume/mute físicos, estabilidade e controle pelo
+novo módulo SDL permaneciam pendentes nesse momento. A captura, isoladamente,
+não validava build ARM64, testes Linux ou versão Soloist. O log de build/CTest
+foi recebido posteriormente, conforme registro abaixo. A captura não valida
+o login OAuth opcional nem as consultas da Web API.
+
+### Evidência posterior do usuário: build ARM64 completo e 15/15 CTest
+
+O usuário executou CMake, compilação serial (`--parallel 1`), CTest e launcher
+em `/home/balancerec/raspberry-tv-spotify`, em diretório separado da RC1 anterior.
+O log contém configuração inicial do compilador e compilação de todos os
+objetos, bibliotecas, aplicativo e testes, sem erros. O agente não executou
+essas operações por SSH; a procedência é o log fornecido pelo usuário.
+
+| Ambiente informado pelo build | Versão |
+|---|---|
+| GCC / C++ | 14.2.0 |
+| SDL2 | 2.32.4 |
+| SDL2_ttf | 2.24.0 |
+| GStreamer / gstreamer-video | 1.26.2 |
+| Python | 3.13.5 |
+| pkg-config | 1.8.1 |
+
+Resultado: **100% dos testes passaram, 0 falhas em 15; tempo total 12,26 s**.
+Além dos nove testes portáveis de regressão, o log registra:
+
+| Teste | Resultado | Tempo |
+|---|---|---|
+| spotify_protocol_navigation_and_worker | PASS | 0,03 s |
+| spotify_oauth_api_and_private_storage | PASS | 3,28 s |
+| spotify_native_process_lifecycle | PASS | 4,11 s |
+| release_scripts_filesystem | PASS | 1,37 s |
+| gstreamer_object_lifecycle | PASS | 0,38 s |
+| real_player_open_failure_cancel_shutdown | PASS | 1,65 s |
+
+O CTest #11 executa a suíte Python também no Linux, incluindo permissões
+0700/0600 em arquivos temporários de teste. Isso não equivale a inspecionar
+os arquivos privados reais da conta. O #12 usa processos Python reais para
+testar argv literal, ciclo de vida, limites, falha e cancelamento. Os testes
+GStreamer usam fakesinks, sem comprovar saída física de áudio/vídeo.
+
+Após os testes, a cadeia `&&` avançou ao launcher e informou:
+
+```text
+Renderizacao interna: 1920 x 1080; saida atual: 1920 x 1080
+```
+
+Esse trecho confirma inicialização do renderer SDL e suas dimensões. Ainda
+faltam confirmação visual dos menus, ações físicas do DualShock, estado/fila
+Soloist exibidos pela UI, áudio audível, volume e troca de faixas. Nenhum log
+de versão Soloist, teste OAuth autenticado ou medição nova de alimentação/FPS
+foi recebido. Mantemos a condição de candidata à validação física; esta nova
+evidência não exige alteração de código nem repetição do build já aprovado.
+
+### Correção posterior: pausa/retomada e ausência de som
+
+A foto enviada depois mostra o painel APLICATIVOS na TV, indicador PS4
+conectado e um cabeçalho “Tocando”. O usuário informou que conseguiu pausar,
+que a retomada não funcionou como esperava e, depois, confirmou **sem som**.
+Não há confirmação audível anterior. A causa da ausência de som permanece
+pendente; o sink ALSA do player IPTV não configura a saída do Soloist.
+
+A auditoria encontrou um defeito reproduzível no código: controles locais
+retornavam apenas “comando aceito”, mantendo o cabeçalho da leitura anterior.
+A linha Pausar também não oferecia retomada ao apertar × novamente. Agora
+consultamos o estado depois do controle, com cinco leituras no máximo e
+prazo compartilhado de 12 segundos, sem reenviar o comando. A mesma linha
+alterna pausa/retomada; retomada ativa o dispositivo quando explicitamente
+inativo. Falha/cancelamento elimina a indicação antiga de reprodução.
+
+Validação local da correção, em build isolado `build-spotify-controls-final`:
+
+- Build limpo CMake/MSVC do núcleo portável: aprovado.
+- CTest portável: **11/11 PASS**, 2,33 s; após os casos adicionais de seleção
+  de áudio, **11/11 PASS**, 1,86 s.
+- Suíte Python atual: **51 casos, 50 PASS e 1 SKIP POSIX** no Windows, 1,067 s.
+- Casos novos cobrem confirmação assíncrona, pausa/retomada, ativação antes de
+  play, estados não confirmados, prazo, erro de leitura, cancelamento na UI,
+  preservação da chave e ambiente de áudio restrito ao processo filho.
+
+A preferência de nó PipeWire/fallback Pulse pode ser salva sem solicitar a
+chave outra vez. O diagnóstico de áudio consulta saídas, mute, volume, fluxos
+e estado Soloist. Nenhum nó foi selecionado por inferência; nenhum servidor,
+serviço, saída global ou arquivo privado real foi alterado pelo agente.
+
+Os **15/15 CTest no ARM64 acima antecedem esta correção**. Novo build nativo,
+retomada física e som HDMI após a correção estão pendentes. A tentativa de
+observação direta pelo agente falhou porque o runtime de Computer Use
+informou indisponibilidade do pipe nativo; só as imagens e logs enviados
+pelo usuário foram observados. Não houve teste físico inventado.
+
+### Ícone para abertura manual — 26/11/2026
+
+Adicionado launcher opcional XFCE com `Terminal=false`, instalação em XDG,
+identificação de arquivos gerenciados e uso do executável existente. A ponte
+Windows delega autenticação ao SSH e não guarda senha, chave ou sessão.
+O primeiro uso conectado instala o ícone no desktop do Pi e abre a TV.
+Não inicia Soloist, serviços ou autostart e não altera áudio global.
+
+No host: sintaxe Python e comando remoto verificados sem conexão; comando
+PowerShell do instalador aceito pelo parser; ícone ICO multirresolução
+gerado e prévia inspecionada. Um .lnk foi gerado na pasta de entrega e relido
+por WScript.Shell, confirmando destino Python, helper e ícone. O acesso SSH
+e a abertura no Pi não foram executados pelo agente.
+
+A gravação direta na área de trabalho e a criação de pastas permanentes do
+Windows retornaram Acesso negado nesta sessão. Foi preparado um instalador
+de duplo clique para a sessão normal do usuário. A simulação POSIX de
+instalação no host também esbarrou nas permissões de criação dos diretórios
+temporários e não é registrada como aprovada. Permissões reais Linux,
+ícone visível e abertura física no Pi seguem pendentes.
+
+### Consolidação e publicação do pacote central — 26/11/2026
+
+TV, Spotify, diagnóstico e atalhos reunidos no pacote central. CMake passa
+a instalar os dois helpers de desktop, o instalador Windows e o ICO junto
+ao helper Spotify e diagnóstico. A instalação dos ícones continua manual.
+O exportador de fontes exige commit limpo, confere o manifesto e preserva
+entregas anteriores; a recusa a checkout sujo foi executada e aprovada.
+
+Reconfiguração e **compilação limpa** Release/MSVC no diretório isolado
+`build-spotify-controls-final`: sem erros. **11/11 CTest PASS, 2,99 s**.
+A suíte Python completa registrou **60 casos, 59 PASS e 1 SKIP, 2,026 s**;
+o skip POSIX no Windows não é convertido em aprovação de permissões Linux.
+Os logs locais são
+`central-configure.log`, `central-build.log`, `central-ctest.log` e
+`central-python.log`, ignorados pelo Git. Nenhum teste físico novo foi feito.
+
+Publicação da integração e da branch de finalização autorizada pelo usuário.
+O main remoto observado antes da publicação estava em `7fc92e9` (merge
+anterior do usuário), e a branch de finalização em `e84c664`. O agente não
+realiza merge ou atualização do main. Áudio Spotify continua sem confirmação.
+
+O exportador gerou ZIP e TAR do commit local `ae50b8a`: **97 arquivos Git,
+96 hashes de fontes conferidos**. Ambos foram reabertos e tiveram seus
+arquivos comparados byte a byte; foram gerados SHA-256 dos dois pacotes e
+JSON de procedência. O pacote não inclui binário ARM64, cliente Soloist,
+playlist privada, chave ou sessão. Uma auditoria prévia dos oito commits
+desde a RC1 examinou 75 blobs distintos sem encontrar a chave real ou
+configuração privada. Arquivos de relatório posteriores mantêm a mesma
+implementação; a entrega final recebe o identificador do commit publicado.
+
+### Evidência CI Linux após publicação — 26/11/2026
+
+O commit publicado **64aa777e92f34705a85e4c3bd5b5739680b67f52** foi confirmado
+nas branches `feature/native-spotify-integration` e `feature/native-tv-release-v10`.
+As nove árvores de commits publicados coincidem exatamente com as árvores
+locais auditadas. O histórico local anterior foi preservado em branch archive;
+o checkout foi alinhado aos commits publicados após verificar seus hashes.
+Main permaneceu em `7fc92e977ac53156a52ace191c9d02a1a4320ea9`.
+
+As duas execuções GitHub Actions concluíram com **success**:
+
+- [Pacote central — execução 45814458812](https://github.com/balancerec/raspberry-pi3plus-tv/actions/runs/45814458812).
+- [Integração Spotify — execução 45814400462](https://github.com/balancerec/raspberry-pi3plus-tv/actions/runs/45814400462).
+
+O job Linux central teve configuração e compilação limpa da aplicação completa
+com `BUILD_NATIVE_APP=ON`, **15/15 CTest PASS, 1,19 s** e **60/60 testes Python
+PASS, 0,591 s**, sem skip. Os logs do job 139890449008 registram SDL2 2.30.0,
+SDL2_ttf 2.22.0, GStreamer/gstreamer-video 1.24.2 e Python 3.12.3. Isso valida
+também o adaptador POSIX, fixtures de permissões e ciclo de vida GStreamer
+da correção atual no runner Linux. Não substitui build ARM64, Bluetooth,
+renderização física ou áudio audível no Raspberry; os testes do player usam
+fakesinks. Nenhum serviço do dispositivo foi alterado nesta publicação.
+
+---

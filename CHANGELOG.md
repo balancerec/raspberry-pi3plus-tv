@@ -1,5 +1,39 @@
 # Changelog
 
+## Não lançado — pacote central — 2026-11-26
+
+- TV, Spotify, atalhos Windows/XFCE e diagnóstico reunidos no pacote central.
+- Abertura Windows na raiz do pacote e distribuição dos arquivos do atalho
+  também pelo CMake/pacote ARM64, sem instalação automática.
+- Exportação ZIP/TAR do commit limpo, verificação de hashes e credenciais,
+  metadados de procedência e preservação das entregas anteriores.
+- Publicação autorizada nas branches de integração Spotify e finalização;
+  áudio Spotify físico permanece pendente, sem aprovação da release final.
+
+## Não lançado — integração Spotify — 2026-11-25
+
+- Abertura manual por ícone: launcher XFCE sem terminal e ponte Windows por
+  SSH, usando o aplicativo compilado, playlist local e saída IPTV HDMI.
+  Sem autostart ou alteração de serviços; instalação no destino pendente.
+- Correção de pausa/retomada na mesma linha e leitura do estado após comandos
+  locais; cabeçalho deixa de preservar “Tocando” desatualizado durante falhas.
+- Preferência de saída por processo para Soloist, com chave preservada, e
+  diagnóstico de áudio sem leitura de credenciais ou alterações de serviços.
+  Ausência de som relatada pelo usuário ainda depende do diagnóstico no Pi.
+- Funções Soloist oficiais para reprodução local/estado/fila/controle,
+  configuração privada por entrada oculta e launcher manual sem serviços.
+- Web API opcional: OAuth PKCE, renovação de token, perfil, playlists/faixas,
+  busca, dispositivos, reprodução, pausa, faixas e volume; endpoints 2026.
+- Painel Spotify controller-first em APLICATIVOS com navegação paginada,
+  worker serializado, cancelamento, prazos e mensagens sem segredos.
+- Testes offline de autenticação/API/armazenamento/Soloist e C++ de protocolo,
+  navegação e concorrência. Build completo ARM64 e 15/15 CTest aprovados no Pi
+  em 12,26 s, conforme log do usuário, incluindo adaptador POSIX e GStreamer.
+  SDL reporta renderização/saída 1920×1080. Áudio e controles físicos pendentes.
+- Código, histórico e pacote sem chave real; `.gitignore` protege arquivos
+  privados. Download do cliente oficial e ativação de áudio não automatizados.
+
+
 ## 1.0.0-rc1 — 2026-11-24 — candidata à validação
 
 ### Implementado

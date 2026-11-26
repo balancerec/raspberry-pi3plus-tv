@@ -23,6 +23,8 @@ public:
     View view() const { return view_; }
     std::size_t selectedHome() const { return selectedHome_; }
     std::size_t selectedRow() const { return selectedRow_; }
+    void setAppRowCount(std::size_t count, bool reset = false);
+    void selectAppRow(std::size_t row);
     bool showHelp() const { return help_; }
     bool showDetails() const { return details_; }
     bool hasFavorite(std::size_t index) const { return index < identities_.size() && favorites_.count(identities_[index]) != 0; }
@@ -42,6 +44,7 @@ private:
     View view_ = View::Home;
     std::size_t selectedHome_ = 0;
     std::size_t selectedRow_ = 0;
+    std::size_t appRowCount_ = 11;
     std::vector<Channel> channels_;
     std::vector<std::string> groups_;
     std::vector<std::size_t> visibleChannels_;

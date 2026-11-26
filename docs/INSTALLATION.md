@@ -171,3 +171,80 @@ checkout Git dessa branch:
 ```bash
 git push -u origin feature/native-tv-release-v10
 ```
+
+## Integração Spotify opcional
+
+Esta branch adicional requer Python 3.9 ou superior para o helper e os novos
+testes. Use `python3 --version` para conferir. Compile/teste em um diretório
+novo, com a mesma resolução e sem alterar a instalação RC1 já validada:
+
+```bash
+cmake -S native -B build-native-spotify -DCMAKE_BUILD_TYPE=Release &&
+cmake --build build-native-spotify --parallel 1 &&
+ctest --test-dir build-native-spotify --output-on-failure
+```
+
+Para executar esse build isolado, defina explicitamente o binário no launcher:
+
+```bash
+DISPLAY=:0 RASPBERRY_TV_BIN="$PWD/build-native-spotify/raspberry-tv-native" \
+  bash scripts/run-native.sh --fullscreen --playlist "$HOME/Playlist_VLC.m3u"
+```
+
+O script informa ao binário onde está o helper Python. A instalação CMake
+inclui apenas o helper da nossa aplicação; `package-arm64.sh` inclui seu
+launcher e documentação, sem estado XDG, chave ou binário Soloist. Download,
+pareamento e saída de áudio local exigem a preparação de [SPOTIFY.md](SPOTIFY.md).
+O Client ID Web API é opcional para consulta de playlists; Soloist usa sua
+chave própria. Nenhum autostart é instalado. Para rollback, encerre a UI e o
+launcher Soloist, depois execute novamente o checkout RC1 anterior.
+
+## Ícone para abertura manual
+
+No Raspberry, uma única instalação do atalho, como usuário da sessão XFCE:
+
+```bash
+python3 scripts/desktop-launcher.py --install --launch
+```
+
+Depois use **Raspberry TV** no desktop ou no menu de aplicativos. O atalho
+tem `Terminal=false`; abre o executável existente em tela cheia, com
+`~/Playlist_VLC.m3u` quando presente e a saída IPTV ALSA HDMI já usada nos
+testes (`plughw:CARD=vc4hdmi,DEV=0`). Prioriza `~/raspberry-tv-spotify`, seguido
+da instalação gerenciada, RC1 isolada e checkout original. Não compila ou
+substitui o app e não inicia o cliente Soloist, servidores ou serviços.
+
+O launcher instalado fica em
+`~/.local/share/raspberry-tv/desktop-launcher/open-tv.py` (ou XDG_DATA_HOME).
+Consulta a pasta localizada com `xdg-user-dir DESKTOP` e cria
+`raspberry-tv-native.desktop` nela e em `~/.local/share/applications`.
+Arquivos existentes de outra origem e links inesperados são preservados.
+Uma instância já aberta do executável do usuário evita nova abertura.
+
+No Windows, dê duplo clique em `scripts/install-desktop-windows.cmd`, com
+Python instalado em `C:\Python314`, como nesta máquina de desenvolvimento.
+No pacote central extraído, `ABRIR_NO_WINDOWS.cmd` chama esse instalador.
+O instalador copia os arquivos para `%LOCALAPPDATA%\Programs\RaspberryTV` e
+cria **Raspberry TV.lnk** na área de trabalho localizada do Windows. Esse
+atalho abre o app na TV por SSH e instala o ícone local do Pi no primeiro uso.
+O SSH pode pedir a senha normal em sua própria janela; a senha não é guardada
+pelo launcher. No VNC, o ícone local dispensa terminal e SSH.
+
+Nenhum autostart é criado. Para remover, exclua o atalho Windows e a pasta
+Programs\RaspberryTV acima. No Pi, remova somente os dois `.desktop` gerados,
+identificados por `X-RaspberryTV-Launcher=1`, e o diretório desktop-launcher.
+Playlists, favoritos, configurações, chave Soloist e binários são preservados.
+
+## Pacote central de fontes
+
+`python scripts/package-source.py --output-dir dist` gera ZIP e TAR versionados
+pelo commit, seus SHA-256 e um JSON de procedência. Exporta apenas arquivos do
+Git, exige checkout limpo, confere SHA256SUMS.txt e recusa configurações
+privadas, chaves Soloist e playlists fora das fixtures de teste. Entregas
+existentes não são sobrescritas. Não inclui binários nativos ou Soloist.
+TV, Spotify, atalhos, diagnóstico, testes e documentação ficam no mesmo pacote.
+
+O empacotamento nativo ARM64 inclui também o launcher Windows, o instalador
+do atalho, o ícone e o launcher XFCE; copiar/extrair esse pacote no Windows
+permite usar o instalador em `scripts`. A instalação do atalho permanece uma
+ação manual, sem hook de instalação do CMake ou autostart.

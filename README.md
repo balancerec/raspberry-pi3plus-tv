@@ -25,8 +25,46 @@ Consulte [o relatório real](docs/TEST_REPORT.md) e [o checklist](docs/RELEASE_C
 - V4L2 H.264 preferido quando disponível; glimagesink/VideoOverlay preservado.
 - OSD em janela X11 separada, sem SDL desenhar no drawable do vídeo.
 - Navegação por controle, reconexão por eventos SDL e teclado simultâneo.
-- Seis módulos preservados. Biblioteca/aplicativos indicam claramente que
-  estão fora do escopo; não oferecem serviços fictícios.
+- Seis módulos preservados. Biblioteca continua fora do escopo. Na branch
+  Spotify, APLICATIVOS oferece controle Soloist local e Web API opcional.
+
+## Pacote central: TV, Spotify e ícone de abertura
+
+O pacote central inclui a interface TV, integração Spotify, diagnóstico e
+ícones de abertura manual. No Windows, extraia o ZIP completo e dê duplo
+clique em **ABRIR_NO_WINDOWS.cmd**; ele instala o atalho **Raspberry TV**.
+O primeiro acesso conectado também instala o ícone no desktop do Raspberry.
+Pelo VNC, esse ícone abre o executável existente sem terminal. O SSH pode
+solicitar sua senha quando a abertura parte do Windows; ela não é salva.
+Nenhum autostart é criado. [Instalação e remoção](docs/INSTALLATION.md#ícone-para-abertura-manual).
+
+O ZIP/TAR de fontes contém código compilável, sem executável ARM64 ou cliente
+Soloist oficial. Para gerar uma cópia auditada a partir de um checkout limpo:
+`python scripts/package-source.py`. O pacote nativo ARM64, gerado no Pi por
+`scripts/package-arm64.sh`, também inclui os helpers e arquivos dos atalhos.
+
+## Spotify opcional
+
+A integração `feature/native-spotify-integration`, incluída na branch central
+`feature/native-tv-release-v10`, adiciona funções nativas em APLICATIVOS:
+controle Soloist local (estado, fila, pausa/retomada, faixas e volume) e Web API
+opcional (playlists, faixas e dispositivos da conta, OAuth PKCE). O Soloist
+oficial é instalado separadamente pelo usuário; nenhuma chave ou binário
+Spotify é distribuído. [Configuração, comandos e limites](docs/SPOTIFY.md).
+
+Esta integração passou por testes offline. Em 25/11/2026, o usuário configurou
+a chave pelo prompt oculto e enviou captura com **Raspberry TV selecionado no
+Spotify Connect**. Posteriormente, forneceu o log de compilação completa ARM64
+da nova UI e **15/15 CTest aprovados em 12,26 s**, com renderização e saída
+1920×1080 reportadas pelo SDL. Ainda faltam áudio audível, controles físicos
+da integração e login OAuth opcional. Os 12/12 testes anteriores referem-se
+à RC1 antes da integração. Nenhum serviço foi modificado por esta integração.
+
+A foto posterior confirma o painel APLICATIVOS na TV e o indicador PS4
+conectado. O usuário relatou pausa funcionando e **ausência de som**. A
+correção de pausa/retomada e estado foi testada no host; seu novo build no Pi
+e a identificação da saída de áudio continuam pendentes. Consulte o
+[diagnóstico Spotify](docs/SPOTIFY.md#diagnosticar-ausência-de-som).
 
 ## Compilar e iniciar manualmente no Raspberry
 

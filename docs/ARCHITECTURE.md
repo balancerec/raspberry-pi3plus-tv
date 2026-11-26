@@ -88,3 +88,29 @@ expor tokens se o usuário os habilitar diretamente; não publique esses logs.
 
 Sem medição de desempenho nesta RC1 no Pi. Dados históricos de v0.3/v0.5
 permanecem nos documentos originais e não são extrapolados para esta versão.
+
+## Integração Spotify opcional (25/11/2026)
+
+`spotify.cpp` mantém protocolo limitado, painel de ações e worker serializado,
+com uma operação ativa e cancelamento. Nenhuma credencial atravessa esse
+protocolo. `spotify_process.cpp` inicia Python sem shell, com argv literal,
+stdout limitado, stderr suprimido, grupo de processos exclusivo e prazo de
+20 segundos. Cancelamento/encerramento matam e recolhem esse grupo; não
+interrompem a thread SDL. O teste Linux específico foi aprovado no Pi,
+conforme log do usuário em 25/11/2026 (CTest #12, 4,11 s); não foi executado
+neste host Windows.
+
+`integrations/spotify/spotify_client.py` usa somente biblioteca padrão Python.
+O adaptador Soloist chama a CLI oficial `ctl` contra loopback; o cliente de
+áudio oficial é instalado e iniciado manualmente pelo usuário. Não há novo
+player de áudio no processo C++, serviço de boot ou dependência web na UI.
+O launcher Soloist em primeiro plano é separado da UI e possui seu próprio
+encerramento Ctrl+C. IPTV mantém seu worker GStreamer e sua seleção de áudio.
+
+A Web API opcional usa PKCE S256, callback loopback e state, token/refresh
+atômicos privados, bloqueio entre operações e cooldown persistente em 429.
+API aceita somente destinos HTTPS oficiais e não segue redirecionamentos
+portando Bearer. Consultas são paginadas, sem baixar toda a biblioteca e sem
+polling contínuo. A chave Soloist tem armazenamento separado dos tokens OAuth.
+Segredos reais não integram código/testes/pacotes. Limitação de argv do
+executável Soloist, áudio e instruções estão em [SPOTIFY.md](SPOTIFY.md).
