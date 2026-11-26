@@ -532,3 +532,38 @@ Nenhum código do player mudou depois da CI de implementação citada acima.
 O agente não executou SSH, não substituiu a instalação do Pi e não confirmou
 áudio físico, Bluetooth, FPS ou alimentação. A ação do usuário no instalador
 é necessária para aplicar o build no dispositivo e cumprir o aceite físico.
+
+### Transferência Connect carrega e volta a pausa — 26/11/2026
+
+O usuário esclareceu que a música para ao escolher Raspberry TV na lista de
+dispositivos do Spotify: aparece carregando e a reprodução volta a pausa.
+Não se trata de selecionar a ação Dispositivo na nossa interface. Também
+confirmou explicitamente som em canais IPTV; a versão exata não foi informada.
+Esse relato confirma áudio naquele caminho GStreamer/ALSA, sem aprovar o
+áudio do cliente Soloist, que usa PipeWire/PulseAudio. A causa da pausa não
+foi determinada por esse relato e não foi atribuída à fonte de alimentação.
+
+Foi preparado `scripts/observe-spotify.py`: inventário de áudio existente e
+30 s de consultas `ctl now`, PID/executável e avanço da posição. Não lê
+chaves, tokens ou `/proc/*/cmdline`; não emite URIs/títulos ou erros remotos
+brutos; não envia play/pause/activate nem muda configuração. Um script Windows
+de duplo clique entrega as fontes públicas comprimidas por SSH e salva um
+relatório local; a coleta não depende de atualizar/recompilar a aplicação.
+O usuário foi orientado a reproduzir a falha durante a coleta. Nenhuma
+conexão SSH foi executada pelo agente.
+
+Antes da mudança: suíte Python do host **86 casos, 79 PASS, 7 SKIP**, 1,881 s.
+Após a mudança: **94 casos, 86 PASS, 8 SKIP POSIX**, 1,956 s. O observador tem
+oito testes: campos permitidos, dados inválidos/segredos, buffering→paused,
+reinício/progresso observados, duração limitada, endpoint loopback/comando
+somente leitura, descoberta do executável e PID real do próprio processo no
+Linux. Esse último caso é pulado no Windows; os outros sete passaram.
+A primeira tentativa do coletor retornou erro de aspas antes de executar
+o diagnóstico no Pi. Não contém evidência do estado de reprodução. A causa
+foi o marshaling de aspas do PowerShell 5.1. O transporte foi corrigido para
+um pipeline sem aspas internas: echo/base64/gzip/python3. Foi testado com
+cmd.exe e PowerShell reais contra um processo nativo que confere os argumentos,
+sem executar SSH. A identidade do argumento remoto foi conferida byte a byte.
+Linha final: 6.809 caracteres, abaixo do limite do cmd.exe.
+Host CMake/CTest após adicionar o observador: 14/14 PASS, 2,85 s.
+Coleta válida no Pi e diagnóstico da causa continuam pendentes.

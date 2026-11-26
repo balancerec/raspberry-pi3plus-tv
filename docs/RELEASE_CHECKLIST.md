@@ -42,7 +42,7 @@ recebe aprovação física por inferência.
 - [x] Carregar playlist real privada: 398 canais, 0 inválidos, 0 duplicados, sem truncamento; confirmado pelo usuário.
 - [ ] Navegar por grupos/páginas da playlist real e validar todos os comandos físicos.
 - [ ] Abrir canal compatível: vídeo fisicamente visível.
-- [ ] Stream com trilha: áudio audível no dispositivo selecionado.
+- [x] Som em canal IPTV confirmado pelo usuário em 26/11; versão exata não informada. Não aprova áudio Spotify.
 - [ ] Volume/mute/restauração audíveis e persistidos após reabrir.
 - [ ] L2/R2 trocam só na lista/grupo de origem, inclusive Favoritos.
 - [ ] ○ interrompe abertura, buffering, retry e vídeo; menu retorna.
@@ -148,3 +148,12 @@ recebe aprovação física por inferência.
 - [x] ZIP/TAR com metadados derivados de release testados e relidos byte a byte.
 - [x] Manifesto real de 101 arquivos Git aceito pelo verificador do updater.
 - [x] Novo instalador Windows preparado para atualizar a UI por duplo clique.
+
+## Falha de transferência Spotify — 26/11/2026
+
+- [x] Registrar som IPTV confirmado e Spotify carregando/voltando a pausa ao selecionar Raspberry TV no Connect.
+- [x] Preparar observador limitado a 30 s, sem comandos de reprodução, credenciais ou mudanças de serviços.
+- [x] Testar transições, progresso, PID, endpoint local, limites e redaction com fixtures.
+- [x] Preparar coletor Windows de duplo clique e relatório local; sintaxe e payload conferidos sem SSH.
+- [ ] Coletar o estado real durante a falha de transferência no Raspberry.
+- [ ] Identificar e corrigir a causa real; confirmar reprodução Spotify audível.

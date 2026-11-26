@@ -312,3 +312,25 @@ A chave fornecida na conversa não foi gravada no projeto, exemplos ou testes.
 Os testes automatizados usam exclusivamente dados artificiais. A evidência do
 usuário sobre configuração e seleção do dispositivo é registrada separadamente;
 a captura não comprova áudio audível. Consulte `TEST_REPORT.md`.
+
+## Transferência Connect carrega e pausa
+
+Se escolher Raspberry TV no Spotify faz carregar e voltar a pausa, capture o
+estado durante a tentativa. O som de um canal IPTV comprova apenas a rota
+GStreamer/ALSA usada por aquele canal; Soloist usa outro cliente de áudio.
+Não considere esse sintoma prova de incapacidade do hardware ou de chave inválida.
+
+O observador opcional `scripts/observe-spotify.py` usa o inventário existente
+e acompanha 30 s do PID, estado, atividade, volume e posição. Só consulta;
+não modifica a sessão e não lê a chave. A entrega Windows inclui
+`Capturar-Falha-Spotify.cmd`, que pede a autenticação normal SSH e grava
+`diagnostico-spotify-reproducao.txt` ao lado do script. Quando aparecer AGORA,
+selecione Raspberry TV no Spotify e reproduza o problema. A versão anterior
+desse relatório é preservada com sufixo de data antes de uma nova coleta.
+
+No Pi, a execução manual equivalente é
+`python3 scripts/observe-spotify.py --seconds 30`. Não exige recompilar a UI.
+O resumo registra somente o observado; não classifica pausas como falhas
+de áudio sem evidência. Ausência de fluxos na API Pulse não exclui clientes
+PipeWire nativos. O relato deve ser combinado com os sockets/saídas e estado
+do processo para decidir a correção. Não colete argv ou logs brutos do SDK.

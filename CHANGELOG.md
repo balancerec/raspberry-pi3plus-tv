@@ -1,5 +1,13 @@
 # Changelog
 
+## Não lançado — diagnóstico da transferência Spotify — 2026-11-26
+
+- Observador somente leitura de 30 s para Connect carregando/voltando a pausa,
+  sem credenciais, títulos/URIs ou comandos de reprodução; acompanha PID e estado.
+- Coletor Windows de duplo clique com relatório local, sem recompilar o app.
+- Áudio IPTV registrado como confirmado pelo usuário; causa da pausa e áudio
+  Spotify permanecem pendentes de evidência do dispositivo.
+
 ## Não lançado — controles de mídia — 2026-11-26
 
 - Player SDL Full HD em APLICATIVOS substitui a lista de opções na abertura:
