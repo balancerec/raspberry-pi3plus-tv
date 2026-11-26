@@ -107,6 +107,7 @@ recebe aprovação física por inferência.
 - [x] Build limpo portável e 11/11 CTest aprovados novamente antes da publicação.
 - [x] Suíte Python completa aprovada no host, com o teste POSIX pendente.
 - [x] Empacotador recusa checkout com alterações não commitadas.
-- [ ] Gerar e conferir ZIP/TAR central e hashes antes da entrega.
+- [x] Gerar ZIP/TAR central: arquivos relidos e 96 hashes de fontes conferidos.
+- [x] Auditar os blobs dos commits Spotify/atalhos e recusar credenciais reais.
 - [x] Usuário autorizou publicar a integração Spotify e o pacote central no Git.
 - [ ] Novo build completo ARM64 e confirmação física do áudio Spotify.

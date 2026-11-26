@@ -380,8 +380,9 @@ entregas anteriores; a recusa a checkout sujo foi executada e aprovada.
 
 Reconfiguração e **compilação limpa** Release/MSVC no diretório isolado
 `build-spotify-controls-final`: sem erros. **11/11 CTest PASS, 2,99 s**.
-A suíte Python completa também foi executada; o skip POSIX no Windows não
-é convertido em aprovação de permissões Linux. Os logs locais são
+A suíte Python completa registrou **60 casos, 59 PASS e 1 SKIP, 2,026 s**;
+o skip POSIX no Windows não é convertido em aprovação de permissões Linux.
+Os logs locais são
 `central-configure.log`, `central-build.log`, `central-ctest.log` e
 `central-python.log`, ignorados pelo Git. Nenhum teste físico novo foi feito.
 
@@ -389,5 +390,14 @@ Publicação da integração e da branch de finalização autorizada pelo usuár
 O main remoto observado antes da publicação estava em `7fc92e9` (merge
 anterior do usuário), e a branch de finalização em `e84c664`. O agente não
 realiza merge ou atualização do main. Áudio Spotify continua sem confirmação.
+
+O exportador gerou ZIP e TAR do commit local `ae50b8a`: **97 arquivos Git,
+96 hashes de fontes conferidos**. Ambos foram reabertos e tiveram seus
+arquivos comparados byte a byte; foram gerados SHA-256 dos dois pacotes e
+JSON de procedência. O pacote não inclui binário ARM64, cliente Soloist,
+playlist privada, chave ou sessão. Uma auditoria prévia dos oito commits
+desde a RC1 examinou 75 blobs distintos sem encontrar a chave real ou
+configuração privada. Arquivos de relatório posteriores mantêm a mesma
+implementação; a entrega final recebe o identificador do commit publicado.
 
 ---
