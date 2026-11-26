@@ -110,4 +110,8 @@ recebe aprovação física por inferência.
 - [x] Gerar ZIP/TAR central: arquivos relidos e 96 hashes de fontes conferidos.
 - [x] Auditar os blobs dos commits Spotify/atalhos e recusar credenciais reais.
 - [x] Usuário autorizou publicar a integração Spotify e o pacote central no Git.
+- [x] Publicação confirmada no GitHub nas duas branches, com árvores de arquivos
+  idênticas às auditadas e main preservado.
+- [x] CI Linux do pacote central: aplicação completa compilada, 15/15 CTest e
+  60/60 testes Python aprovados no commit 64aa777.
 - [ ] Novo build completo ARM64 e confirmação física do áudio Spotify.

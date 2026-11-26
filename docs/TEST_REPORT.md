@@ -400,4 +400,27 @@ desde a RC1 examinou 75 blobs distintos sem encontrar a chave real ou
 configuração privada. Arquivos de relatório posteriores mantêm a mesma
 implementação; a entrega final recebe o identificador do commit publicado.
 
+### Evidência CI Linux após publicação — 26/11/2026
+
+O commit publicado **64aa777e92f34705a85e4c3bd5b5739680b67f52** foi confirmado
+nas branches `feature/native-spotify-integration` e `feature/native-tv-release-v10`.
+As nove árvores de commits publicados coincidem exatamente com as árvores
+locais auditadas. O histórico local anterior foi preservado em branch archive;
+o checkout foi alinhado aos commits publicados após verificar seus hashes.
+Main permaneceu em `7fc92e977ac53156a52ace191c9d02a1a4320ea9`.
+
+As duas execuções GitHub Actions concluíram com **success**:
+
+- [Pacote central — execução 45814458812](https://github.com/balancerec/raspberry-pi3plus-tv/actions/runs/45814458812).
+- [Integração Spotify — execução 45814400462](https://github.com/balancerec/raspberry-pi3plus-tv/actions/runs/45814400462).
+
+O job Linux central teve configuração e compilação limpa da aplicação completa
+com `BUILD_NATIVE_APP=ON`, **15/15 CTest PASS, 1,19 s** e **60/60 testes Python
+PASS, 0,591 s**, sem skip. Os logs do job 139890449008 registram SDL2 2.30.0,
+SDL2_ttf 2.22.0, GStreamer/gstreamer-video 1.24.2 e Python 3.12.3. Isso valida
+também o adaptador POSIX, fixtures de permissões e ciclo de vida GStreamer
+da correção atual no runner Linux. Não substitui build ARM64, Bluetooth,
+renderização física ou áudio audível no Raspberry; os testes do player usam
+fakesinks. Nenhum serviço do dispositivo foi alterado nesta publicação.
+
 ---
