@@ -21,10 +21,11 @@ recebe aprovação física por inferência.
 - [x] Nenhum merge no main ou alteração automática de serviços/instalação aprovada no Pi realizada.
 - [x] Publicação da branch de finalização autorizada pelo usuário; playlist privada excluída da entrega.
 
-## Build / integração Linux ainda necessários
+## Build / integração Linux
 
 - [x] Aplicação completa ARM64 compilada após hotfix X11 (build retomado; log fornecido pelo usuário).
-- [ ] Build completo limpo ARM64 com SDL2/GStreamer 1.26.
+- [x] Build completo em diretório ARM64 isolado com SDL2/GStreamer 1.26,
+  incluindo Spotify; log de compilação integral fornecido pelo usuário em 25/11/2026.
 - [x] CTest completo Linux (12/12 PASS, 4,46 s; log fornecido pelo usuário).
 - [x] Ownership real de GStreamer com CRITICAL fatal aprovado na RC1 (teste #11).
 - [x] Player real com fakesinks: WAV → PLAYING/pausa/retomada/stop; falhas/requisições obsoletas/shutdown (teste #12).
@@ -62,16 +63,19 @@ recebe aprovação física por inferência.
 - [ ] Investigar travamentos relatados; subtensão é hipótese, não diagnóstico exclusivo comprovado.
 - [ ] Release 1.0 final aprovada. Até lá, manter o identificador RC1.
 
-## Adicional Spotify — branch separada, não aprovada no hardware
+## Adicional Spotify — build no Pi aprovado; aceite físico pendente
 
 - [x] Base RC1 preservada; nenhum merge no main ou substituição da instalação aprovada pelo agente.
 - [x] Testes portáveis existentes executados antes da alteração: 9/9 PASS.
 - [x] Testes offline Spotify e worker/protocolo/navegação C++ executados.
 - [x] Credencial real ausente de fonte, testes, exemplos e arquivos Git.
 - [x] Configuração privada e instruções de instalação/execução/rollback preparadas.
-- [ ] Build ARM64 da interface alterada e CTest completo, incluindo processo POSIX.
+- [x] Build ARM64 da interface alterada e CTest completo, incluindo processo POSIX:
+  15/15 PASS, 12,26 s, conforme log do usuário.
+- [x] UI inicializa e reporta renderização interna/saída 1920×1080 no log SDL.
+- [x] Permissões POSIX 0700/0600 em fixtures de teste aprovadas na suíte Python.
 - [x] Configuração da chave por prompt oculto confirmada pelo log do usuário.
 - [x] Raspberry TV selecionado no Spotify Connect, conforme captura do usuário.
-- [ ] Permissões POSIX, versão do cliente Soloist e áudio HDMI audível verificados no Pi.
+- [ ] Permissões dos arquivos reais, versão do cliente Soloist e áudio HDMI audível verificados no Pi.
 - [ ] OAuth real opcional, playlists da conta e dispositivo real.
 - [ ] Regressão física IPTV/Full HD/DS4/OSD após esta integração.

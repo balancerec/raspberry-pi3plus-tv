@@ -96,8 +96,9 @@ com uma operação ativa e cancelamento. Nenhuma credencial atravessa esse
 protocolo. `spotify_process.cpp` inicia Python sem shell, com argv literal,
 stdout limitado, stderr suprimido, grupo de processos exclusivo e prazo de
 20 segundos. Cancelamento/encerramento matam e recolhem esse grupo; não
-interrompem a thread SDL. O teste Linux específico está preparado, não
-executado neste host Windows.
+interrompem a thread SDL. O teste Linux específico foi aprovado no Pi,
+conforme log do usuário em 25/11/2026 (CTest #12, 4,11 s); não foi executado
+neste host Windows.
 
 `integrations/spotify/spotify_client.py` usa somente biblioteca padrão Python.
 O adaptador Soloist chama a CLI oficial `ctl` contra loopback; o cliente de

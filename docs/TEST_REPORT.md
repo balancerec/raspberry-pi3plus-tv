@@ -1,4 +1,4 @@
-# Relatório de testes — 1.0.0-rc1 — 2026-11-24
+# Relatório de testes — 1.0.0-rc1 — atualizado em 2026-11-25
 
 ## Resultado executivo
 
@@ -8,6 +8,11 @@ O servidor Python legado passou: **9/9, 0,797 s**. Depois do hotfix X11, o
 usuário compilou a aplicação completa no Pi e executou **12/12 testes com
 sucesso, 4,46 s**. O agente não acessou o Pi; os resultados ARM64 são do log
 fornecido pelo usuário. O binário foi gerado no dispositivo, não neste host.
+
+**Atualização Spotify (25/11/2026):** o usuário forneceu posteriormente o log
+de compilação completa ARM64 da integração e **15/15 CTest PASS, 12,26 s**.
+O SDL reportou renderização e saída 1920×1080. A evidência detalhada está ao
+final deste documento; áudio audível e comandos físicos continuam pendentes.
 
 ## Ambiente e procedência
 
@@ -217,11 +222,12 @@ cancelamento/descarte de resposta antiga, falha sanitizada e shutdown do worker.
 Os nove testes anteriores de parser, entrada, persistência, playback e filas
 continuam passando. Não alteramos o ciclo de vida de GStreamer nesta integração.
 
-Pendentes: build Linux/ARM64 da UI alterada; teste do adaptador POSIX real,
-permissões 0700/0600 e CTest completo do destino (15 testes cadastrados nessa
-configuração, ainda não executados). O workflow Linux está preparado no Git,
-mas não foi executado nesta sessão. Não há SDK SDL2/GStreamer Linux neste
-host, acesso SSH operacional ou cliente Soloist disponível para validar som.
+Na etapa inicial no host Windows, build Linux/ARM64 da UI, adaptador POSIX,
+permissões 0700/0600 e CTest completo do destino ainda estavam pendentes.
+O usuário executou posteriormente esses testes, conforme nova evidência abaixo.
+O workflow Linux está preparado no Git, mas não foi executado nesta sessão.
+Não há SDK SDL2/GStreamer Linux neste host, acesso SSH operacional ou cliente
+Soloist disponível ao agente para validar som.
 
 Cliente Soloist oficial não é redistribuído. Precisa ser instalado e pareado
 pelo usuário; depende de PipeWire/PulseAudio no Linux. O diagnóstico anterior
@@ -253,8 +259,57 @@ a indicação do dispositivo no rodapé não comprova áudio audível ou reprodu
 contínua. Não reproduzimos dados pessoais ou a imagem no repositório.
 
 Áudio na TV, saída HDMI, volume/mute físicos, estabilidade e controle pelo
-novo módulo SDL permanecem pendentes. Também não foi recebido log do build
-ARM64 da integração, da versão Soloist ou dos novos testes Linux. Essa captura
-não valida o login OAuth opcional nem as consultas da Web API.
+novo módulo SDL permaneciam pendentes nesse momento. A captura, isoladamente,
+não validava build ARM64, testes Linux ou versão Soloist. O log de build/CTest
+foi recebido posteriormente, conforme registro abaixo. A captura não valida
+o login OAuth opcional nem as consultas da Web API.
+
+### Evidência posterior do usuário: build ARM64 completo e 15/15 CTest
+
+O usuário executou CMake, compilação serial (`--parallel 1`), CTest e launcher
+em `/home/balancerec/raspberry-tv-spotify`, em diretório separado da RC1 anterior.
+O log contém configuração inicial do compilador e compilação de todos os
+objetos, bibliotecas, aplicativo e testes, sem erros. O agente não executou
+essas operações por SSH; a procedência é o log fornecido pelo usuário.
+
+| Ambiente informado pelo build | Versão |
+|---|---|
+| GCC / C++ | 14.2.0 |
+| SDL2 | 2.32.4 |
+| SDL2_ttf | 2.24.0 |
+| GStreamer / gstreamer-video | 1.26.2 |
+| Python | 3.13.5 |
+| pkg-config | 1.8.1 |
+
+Resultado: **100% dos testes passaram, 0 falhas em 15; tempo total 12,26 s**.
+Além dos nove testes portáveis de regressão, o log registra:
+
+| Teste | Resultado | Tempo |
+|---|---|---|
+| spotify_protocol_navigation_and_worker | PASS | 0,03 s |
+| spotify_oauth_api_and_private_storage | PASS | 3,28 s |
+| spotify_native_process_lifecycle | PASS | 4,11 s |
+| release_scripts_filesystem | PASS | 1,37 s |
+| gstreamer_object_lifecycle | PASS | 0,38 s |
+| real_player_open_failure_cancel_shutdown | PASS | 1,65 s |
+
+O CTest #11 executa a suíte Python também no Linux, incluindo permissões
+0700/0600 em arquivos temporários de teste. Isso não equivale a inspecionar
+os arquivos privados reais da conta. O #12 usa processos Python reais para
+testar argv literal, ciclo de vida, limites, falha e cancelamento. Os testes
+GStreamer usam fakesinks, sem comprovar saída física de áudio/vídeo.
+
+Após os testes, a cadeia `&&` avançou ao launcher e informou:
+
+```text
+Renderizacao interna: 1920 x 1080; saida atual: 1920 x 1080
+```
+
+Esse trecho confirma inicialização do renderer SDL e suas dimensões. Ainda
+faltam confirmação visual dos menus, ações físicas do DualShock, estado/fila
+Soloist exibidos pela UI, áudio audível, volume e troca de faixas. Nenhum log
+de versão Soloist, teste OAuth autenticado ou medição nova de alimentação/FPS
+foi recebido. Mantemos a condição de candidata à validação física; esta nova
+evidência não exige alteração de código nem repetição do build já aprovado.
 
 ---

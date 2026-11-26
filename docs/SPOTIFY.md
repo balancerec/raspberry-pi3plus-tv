@@ -199,9 +199,13 @@ A chave fornecida na conversa não foi gravada no projeto, exemplos ou testes.
   serialização, metadados, paginação, armazenamento e comandos Soloist.
 - [x] Testes C++ de protocolo, navegação, exclusão de comandos duplicados,
   descarte de resultados cancelados e encerramento do worker.
-- [ ] Teste POSIX de permissões 0700/0600 no Raspberry.
-- [ ] Teste Linux real do adaptador de processos/cancelamento e CTest completo.
-- [ ] Build ARM64 da interface alterada e regressão física IPTV/DualShock.
+- [x] Teste POSIX de permissões 0700/0600 em arquivos temporários de teste no Pi,
+  integrante da suíte Python aprovada pelo CTest #11.
+- [x] Teste Linux real do adaptador de processos/cancelamento e CTest completo:
+  15/15 PASS, 12,26 s, conforme log do usuário em 25/11/2026.
+- [x] Build completo ARM64 da interface alterada, com GCC 14.2 e GStreamer 1.26.2.
+- [x] Inicialização SDL reporta renderização interna e saída 1920×1080.
+- [ ] Regressão física IPTV/DualShock e comandos Spotify pelo controle.
 - [x] Chave Soloist configurada pelo usuário no prompt oculto, conforme log enviado.
 - [x] Dispositivo Raspberry TV descoberto e selecionado no Spotify Connect,
   conforme captura enviada pelo usuário em 25/11/2026.

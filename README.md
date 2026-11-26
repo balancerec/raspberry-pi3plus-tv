@@ -38,9 +38,11 @@ Spotify é distribuído. [Configuração, comandos e limites](docs/SPOTIFY.md).
 
 Esta integração passou por testes offline. Em 25/11/2026, o usuário configurou
 a chave pelo prompt oculto e enviou captura com **Raspberry TV selecionado no
-Spotify Connect**. Ainda faltam build ARM64 da nova UI, áudio audível no Pi e
-login OAuth opcional. Os 12/12 testes anteriores no Pi referem-se à RC1 antes
-da integração. Nenhum serviço foi modificado por esta integração.
+Spotify Connect**. Posteriormente, forneceu o log de compilação completa ARM64
+da nova UI e **15/15 CTest aprovados em 12,26 s**, com renderização e saída
+1920×1080 reportadas pelo SDL. Ainda faltam áudio audível, controles físicos
+da integração e login OAuth opcional. Os 12/12 testes anteriores referem-se
+à RC1 antes da integração. Nenhum serviço foi modificado por esta integração.
 
 ## Compilar e iniciar manualmente no Raspberry
 

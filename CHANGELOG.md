@@ -9,7 +9,9 @@
 - Painel Spotify controller-first em APLICATIVOS com navegação paginada,
   worker serializado, cancelamento, prazos e mensagens sem segredos.
 - Testes offline de autenticação/API/armazenamento/Soloist e C++ de protocolo,
-  navegação e concorrência. Adaptador POSIX e áudio físico pendentes no Pi.
+  navegação e concorrência. Build completo ARM64 e 15/15 CTest aprovados no Pi
+  em 12,26 s, conforme log do usuário, incluindo adaptador POSIX e GStreamer.
+  SDL reporta renderização/saída 1920×1080. Áudio e controles físicos pendentes.
 - Código, histórico e pacote sem chave real; `.gitignore` protege arquivos
   privados. Download do cliente oficial e ativação de áudio não automatizados.
 
