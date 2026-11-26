@@ -124,6 +124,8 @@ recebe aprovação física por inferência.
 - [x] Adaptador mantém o protocolo do binário existente e evita recompilação no Pi.
 - [x] Transporte Windows comprimido conferido; nenhum segredo é transportado.
 - [x] Host: 12/12 CTest e 70 casos Python, com skips POSIX explicitamente registrados.
-- [ ] Executar testes de processos/supervisão em Linux antes da entrega final.
+- [x] Linux CI: 16/16 CTest e 70/70 testes Python, incluindo os seis casos de
+  processos/supervisão, aprovados após a correção no commit 237ddc1.
+- [x] Preparar atualização do instalador existente sem mudar o binário aprovado.
 - [ ] Aplicar launcher atualizado e confirmar no Raspberry após fechar SSH.
 - [ ] Confirmar música audível na saída correta.

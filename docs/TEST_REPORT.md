@@ -459,4 +459,20 @@ própria sessão. Foi incluída proteção contra duplicar um cliente manual viv
 com API lenta, verificando PID, usuário e executável sem ler sua linha de
 comando. A execução Linux deve ser repetida antes de aplicar a atualização.
 
+Repetição aprovada no commit **237ddc1877a231a852b139926650f08d79938ae7**:
+[CI central 45823870221](https://github.com/balancerec/raspberry-pi3plus-tv/actions/runs/45823870221)
+e [CI Spotify 45823865192](https://github.com/balancerec/raspberry-pi3plus-tv/actions/runs/45823865192)
+concluíram com sucesso. No job Linux 139922845515, **16/16 CTest PASS, 10,32 s**;
+o teste desktop/supervisão passou em 9,00 s. A suíte Python executou **70/70
+casos, sem skip, em 9,572 s**. O ResourceWarning não reapareceu. Foram
+executados os seis casos POSIX, incluindo preservação de cliente manual
+cuja API está temporariamente lenta.
+
+O instalador Windows existente recebeu os dois helpers atualizados; o
+transporte comprimido tem 8.528 caracteres e foi conferido sem abrir SSH.
+A pasta instalada Windows retornou Acesso negado à escrita do agente e seus
+arquivos anteriores foram relidos e confirmados intactos. A aplicação da
+atualização será feita pelo instalador na sessão normal do usuário. O
+agente não executou SSH, não iniciou o Soloist real e não confirmou áudio.
+
 ---
