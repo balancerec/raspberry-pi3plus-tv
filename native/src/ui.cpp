@@ -47,7 +47,11 @@ std::string temperatureText() {
 }
 void line(SDL_Renderer* r,int x1,int y1,int x2,int y2,SDL_Color color) {
     SDL_SetRenderDrawColor(r,color.r,color.g,color.b,color.a);
-    SDL_RenderDrawLine(r,display::toNative(x1),display::toNative(y1),display::toNative(x2),display::toNative(y2));
+    const int ax=display::toNative(x1),ay=display::toNative(y1),bx=display::toNative(x2),by=display::toNative(y2);
+    for(int offset=-1;offset<=1;++offset) {
+        if(std::abs(bx-ax)>=std::abs(by-ay))SDL_RenderDrawLine(r,ax,ay+offset,bx,by+offset);
+        else SDL_RenderDrawLine(r,ax+offset,ay,bx+offset,by);
+    }
 }
 void circle(SDL_Renderer* r,int x,int y,int radius,SDL_Color color,bool solid) {
     SDL_SetRenderDrawColor(r,color.r,color.g,color.b,color.a);
@@ -62,7 +66,20 @@ void circle(SDL_Renderer* r,int x,int y,int radius,SDL_Color color,bool solid) {
     }
 }
 void triangle(SDL_Renderer* r,int x,int y,int size,bool right,SDL_Color color) {
-    for(int i=0;i<size;++i) {const int half=(size-i)/2;line(r,x+(right?i:-i)-size/3,y-half,x+(right?i:-i)-size/3,y+half,color);}
+    SDL_SetRenderDrawColor(r,color.r,color.g,color.b,color.a);
+    const int width=display::toNative(size),base=display::toNative(x-size/3),center=display::toNative(y);
+    for(int i=0;i<width;++i) {
+        const int half=(width-i)/2,px=base+(right?i:-i);
+        SDL_RenderDrawLine(r,px,center-half,px,center+half);
+    }
+}
+void musicBeam(SDL_Renderer* r,SDL_Color color) {
+    SDL_SetRenderDrawColor(r,color.r,color.g,color.b,color.a);
+    const int left=display::toNative(178),top=display::toNative(283),width=display::toNative(50);
+    for(int x=0;x<=width;++x) {
+        const int y=top-x*display::toNative(11)/width;
+        SDL_RenderDrawLine(r,left+x,y,left+x,y+display::toNative(8));
+    }
 }
 std::string mediaTime(int ms) {
     if(ms<0)return "--:--";
@@ -313,7 +330,7 @@ void TvUi::spotifyContent(SDL_Renderer* r,const TvModel& model) {
     fill(r,{95,240,180,180},{11,30,35,255});border(r,{95,240,180,180},{39,96,85,255});
     // A neutral music symbol is used when artwork is not supplied; no fake cover.
     fill(r,{178,283,8,82},Mint);fill(r,{221,272,8,79},Mint);
-    for(int i=0;i<8;++i)line(r,178,283+i,228,272+i,Mint);
+    musicBeam(r,Mint);
     circle(r,166,365,15,Mint,true);circle(r,209,351,15,Mint,true);
     text(r,heading_,data.track.empty()?"Escolha uma musica":data.track,318,235,White,850);
     text(r,body_,data.artist.empty()?"Selecione Raspberry TV no Spotify":data.artist,320,280,Muted,850);
@@ -348,11 +365,13 @@ void TvUi::spotifyContent(SDL_Renderer* r,const TvModel& model) {
             line(r,x-15,y-9,x-7,y-9,ink);line(r,x-7,y-9,x+8,y+9,ink);line(r,x+8,y+9,x+15,y+9,ink);
             line(r,x-15,y+9,x-7,y+9,ink);line(r,x-7,y+9,x+8,y-9,ink);line(r,x+8,y-9,x+15,y-9,ink);
             line(r,x+11,y-13,x+16,y-9,ink);line(r,x+11,y-5,x+16,y-9,ink);
+            line(r,x+11,y+5,x+16,y+9,ink);line(r,x+11,y+13,x+16,y+9,ink);
             if(data.shuffle==1)circle(r,x,y+23,2,selected?Dark:Mint,true);
         } else if(i==4) {
-            line(r,x-14,y-9,x+12,y-9,ink);line(r,x+12,y-9,x+16,y-3,ink);
-            line(r,x+14,y+9,x-12,y+9,ink);line(r,x-12,y+9,x-16,y+3,ink);
-            line(r,x+12,y-9,x+8,y-14,ink);line(r,x-12,y+9,x-8,y+14,ink);
+            line(r,x-15,y-9,x+14,y-9,ink);line(r,x+14,y-9,x+8,y-15,ink);line(r,x+14,y-9,x+8,y-3,ink);
+            line(r,x-15,y-9,x-19,y-5,ink);line(r,x-19,y-5,x-19,y+2,ink);
+            line(r,x+15,y+9,x-14,y+9,ink);line(r,x-14,y+9,x-8,y+3,ink);line(r,x-14,y+9,x-8,y+15,ink);
+            line(r,x+15,y+9,x+19,y+5,ink);line(r,x+19,y+5,x+19,y-2,ink);
             if(data.repeat=="track")text(r,small_,"1",x-4,y-7,ink,15);
             if(data.repeat!="off" && data.repeat!="unknown")circle(r,x,y+23,2,selected?Dark:Mint,true);
         }
