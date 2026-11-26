@@ -2,6 +2,9 @@
 
 ## Não lançado — integração Spotify — 2026-11-25
 
+- Abertura manual por ícone: launcher XFCE sem terminal e ponte Windows por
+  SSH, usando o aplicativo compilado, playlist local e saída IPTV HDMI.
+  Sem autostart ou alteração de serviços; instalação no destino pendente.
 - Correção de pausa/retomada na mesma linha e leitura do estado após comandos
   locais; cabeçalho deixa de preservar “Tocando” desatualizado durante falhas.
 - Preferência de saída por processo para Soloist, com chave preservada, e

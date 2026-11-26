@@ -349,4 +349,25 @@ observação direta pelo agente falhou porque o runtime de Computer Use
 informou indisponibilidade do pipe nativo; só as imagens e logs enviados
 pelo usuário foram observados. Não houve teste físico inventado.
 
+### Ícone para abertura manual — 26/11/2026
+
+Adicionado launcher opcional XFCE com `Terminal=false`, instalação em XDG,
+identificação de arquivos gerenciados e uso do executável existente. A ponte
+Windows delega autenticação ao SSH e não guarda senha, chave ou sessão.
+O primeiro uso conectado instala o ícone no desktop do Pi e abre a TV.
+Não inicia Soloist, serviços ou autostart e não altera áudio global.
+
+No host: sintaxe Python e comando remoto verificados sem conexão; comando
+PowerShell do instalador aceito pelo parser; ícone ICO multirresolução
+gerado e prévia inspecionada. Um .lnk foi gerado na pasta de entrega e relido
+por WScript.Shell, confirmando destino Python, helper e ícone. O acesso SSH
+e a abertura no Pi não foram executados pelo agente.
+
+A gravação direta na área de trabalho e a criação de pastas permanentes do
+Windows retornaram Acesso negado nesta sessão. Foi preparado um instalador
+de duplo clique para a sessão normal do usuário. A simulação POSIX de
+instalação no host também esbarrou nas permissões de criação dos diretórios
+temporários e não é registrada como aprovada. Permissões reais Linux,
+ícone visível e abertura física no Pi seguem pendentes.
+
 ---

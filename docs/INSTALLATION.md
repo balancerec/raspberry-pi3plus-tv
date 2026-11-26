@@ -198,3 +198,38 @@ pareamento e saída de áudio local exigem a preparação de [SPOTIFY.md](SPOTIF
 O Client ID Web API é opcional para consulta de playlists; Soloist usa sua
 chave própria. Nenhum autostart é instalado. Para rollback, encerre a UI e o
 launcher Soloist, depois execute novamente o checkout RC1 anterior.
+
+## Ícone para abertura manual
+
+No Raspberry, uma única instalação do atalho, como usuário da sessão XFCE:
+
+```bash
+python3 scripts/desktop-launcher.py --install --launch
+```
+
+Depois use **Raspberry TV** no desktop ou no menu de aplicativos. O atalho
+tem `Terminal=false`; abre o executável existente em tela cheia, com
+`~/Playlist_VLC.m3u` quando presente e a saída IPTV ALSA HDMI já usada nos
+testes (`plughw:CARD=vc4hdmi,DEV=0`). Prioriza `~/raspberry-tv-spotify`, seguido
+da instalação gerenciada, RC1 isolada e checkout original. Não compila ou
+substitui o app e não inicia o cliente Soloist, servidores ou serviços.
+
+O launcher instalado fica em
+`~/.local/share/raspberry-tv/desktop-launcher/open-tv.py` (ou XDG_DATA_HOME).
+Consulta a pasta localizada com `xdg-user-dir DESKTOP` e cria
+`raspberry-tv-native.desktop` nela e em `~/.local/share/applications`.
+Arquivos existentes de outra origem e links inesperados são preservados.
+Uma instância já aberta do executável do usuário evita nova abertura.
+
+No Windows, dê duplo clique em `scripts/install-desktop-windows.cmd`, com
+Python instalado em `C:\Python314`, como nesta máquina de desenvolvimento.
+O instalador copia os arquivos para `%LOCALAPPDATA%\Programs\RaspberryTV` e
+cria **Raspberry TV.lnk** na área de trabalho localizada do Windows. Esse
+atalho abre o app na TV por SSH e instala o ícone local do Pi no primeiro uso.
+O SSH pode pedir a senha normal em sua própria janela; a senha não é guardada
+pelo launcher. No VNC, o ícone local dispensa terminal e SSH.
+
+Nenhum autostart é criado. Para remover, exclua o atalho Windows e a pasta
+Programs\RaspberryTV acima. No Pi, remova somente os dois `.desktop` gerados,
+identificados por `X-RaspberryTV-Launcher=1`, e o diretório desktop-launcher.
+Playlists, favoritos, configurações, chave Soloist e binários são preservados.

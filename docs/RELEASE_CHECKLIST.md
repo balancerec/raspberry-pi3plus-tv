@@ -90,3 +90,12 @@ recebe aprovação física por inferência.
 - [ ] Obter diagnóstico real e identificar a saída usada pelo Soloist.
 - [ ] Compilar e executar os 15 CTest no Pi após esta correção.
 - [ ] Confirmar música audível, pausa/retomada, faixas e volume na TV.
+
+## Ícone de abertura manual — 26/11/2026
+
+- [x] Preparar ícone próprio, launcher XFCE com Terminal=false e ponte Windows.
+- [x] Validar sintaxe do instalador Windows e payload Python sem conexão SSH.
+- [x] Gerar e reler o arquivo .lnk na pasta de entrega com destino/ícone corretos.
+- [ ] Instalar na área de trabalho Windows pela sessão normal do usuário
+  (a gravação direta do agente recebeu Acesso negado).
+- [ ] Primeiro uso no Pi: ícone visível, abertura do app e prevenção de duplicata.
