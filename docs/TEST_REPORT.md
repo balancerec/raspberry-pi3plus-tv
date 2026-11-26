@@ -237,6 +237,24 @@ oficial e demais requisitos: [SPOTIFY.md](SPOTIFY.md).
 
 Não foram medidos consumo de memória, CPU, FPS, temperatura ou alimentação
 após esta mudança. HDMI 1080p, DS4, IPTV e áudio exigem regressão física com o
-novo build. Nenhuma atualização/instalação de release foi aplicada ao Pi.
+novo build. Nenhuma atualização/instalação de release foi aplicada ao Pi pelo agente.
+
+### Evidência posterior do usuário: configuração e Spotify Connect
+
+Em 25/11/2026, o usuário enviou o log do prompt oculto concluído com a mensagem
+de chave Soloist salva em arquivo privado fora do projeto. O valor da chave
+não apareceu nesse log e não foi copiado para arquivos Git.
+
+Depois enviou uma captura do Spotify desktop com **Raspberry TV** destacado
+no painel Connect e a indicação de dispositivo no rodapé. Isso confirma que
+o dispositivo foi descoberto e selecionado no cliente Spotify. O botão central
+exibe o ícone de reproduzir (triângulo), compatível com pausa na captura;
+a indicação do dispositivo no rodapé não comprova áudio audível ou reprodução
+contínua. Não reproduzimos dados pessoais ou a imagem no repositório.
+
+Áudio na TV, saída HDMI, volume/mute físicos, estabilidade e controle pelo
+novo módulo SDL permanecem pendentes. Também não foi recebido log do build
+ARM64 da integração, da versão Soloist ou dos novos testes Linux. Essa captura
+não valida o login OAuth opcional nem as consultas da Web API.
 
 ---

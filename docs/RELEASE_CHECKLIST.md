@@ -64,12 +64,14 @@ recebe aprovação física por inferência.
 
 ## Adicional Spotify — branch separada, não aprovada no hardware
 
-- [x] Base RC1 preservada; nenhum merge no main ou instalação no Pi.
+- [x] Base RC1 preservada; nenhum merge no main ou substituição da instalação aprovada pelo agente.
 - [x] Testes portáveis existentes executados antes da alteração: 9/9 PASS.
 - [x] Testes offline Spotify e worker/protocolo/navegação C++ executados.
 - [x] Credencial real ausente de fonte, testes, exemplos e arquivos Git.
 - [x] Configuração privada e instruções de instalação/execução/rollback preparadas.
 - [ ] Build ARM64 da interface alterada e CTest completo, incluindo processo POSIX.
-- [ ] Permissões POSIX, cliente Soloist real, pareamento e áudio HDMI audível.
+- [x] Configuração da chave por prompt oculto confirmada pelo log do usuário.
+- [x] Raspberry TV selecionado no Spotify Connect, conforme captura do usuário.
+- [ ] Permissões POSIX, versão do cliente Soloist e áudio HDMI audível verificados no Pi.
 - [ ] OAuth real opcional, playlists da conta e dispositivo real.
 - [ ] Regressão física IPTV/Full HD/DS4/OSD após esta integração.

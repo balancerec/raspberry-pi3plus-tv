@@ -36,9 +36,11 @@ opcional (playlists, faixas e dispositivos da conta, OAuth PKCE). O Soloist
 oficial é instalado separadamente pelo usuário; nenhuma chave ou binário
 Spotify é distribuído. [Configuração, comandos e limites](docs/SPOTIFY.md).
 
-Esta integração passou por testes offline, mas **ainda precisa de build ARM64,
-pareamento, login e áudio audível no Raspberry**. Os 12/12 testes anteriores
-no Pi referem-se à RC1 antes da integração. Nenhum serviço foi modificado.
+Esta integração passou por testes offline. Em 25/11/2026, o usuário configurou
+a chave pelo prompt oculto e enviou captura com **Raspberry TV selecionado no
+Spotify Connect**. Ainda faltam build ARM64 da nova UI, áudio audível no Pi e
+login OAuth opcional. Os 12/12 testes anteriores no Pi referem-se à RC1 antes
+da integração. Nenhum serviço foi modificado por esta integração.
 
 ## Compilar e iniciar manualmente no Raspberry
 

@@ -202,9 +202,13 @@ A chave fornecida na conversa não foi gravada no projeto, exemplos ou testes.
 - [ ] Teste POSIX de permissões 0700/0600 no Raspberry.
 - [ ] Teste Linux real do adaptador de processos/cancelamento e CTest completo.
 - [ ] Build ARM64 da interface alterada e regressão física IPTV/DualShock.
-- [ ] Cliente Soloist instalado pelo usuário, build válido e chave configurada.
-- [ ] Pareamento e áudio audível pelo dispositivo de saída do Raspberry.
+- [x] Chave Soloist configurada pelo usuário no prompt oculto, conforme log enviado.
+- [x] Dispositivo Raspberry TV descoberto e selecionado no Spotify Connect,
+  conforme captura enviada pelo usuário em 25/11/2026.
+- [ ] Versão e validade do build Soloist registradas por log do Raspberry.
+- [ ] Reprodução efetiva e áudio audível pelo dispositivo de saída do Raspberry.
 - [ ] OAuth real, playlists da conta e controle de dispositivo real.
 
-Os testes usam exclusivamente dados artificiais. Nenhum resultado físico ou
-autenticação real é inferido desses testes. Consulte `TEST_REPORT.md`.
+Os testes automatizados usam exclusivamente dados artificiais. A evidência do
+usuário sobre configuração e seleção do dispositivo é registrada separadamente;
+a captura não comprova áudio audível. Consulte `TEST_REPORT.md`.
